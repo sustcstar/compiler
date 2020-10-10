@@ -2,65 +2,131 @@
     #include"lex.yy.c"
     void yyerror(const char*);
 %}
+//key words
+%token STRUCT RETURN IF ELSE WHILE
+//type
+%token INT CHAR FLOAT TYPE 
+//symbol
+%token SEMI COMMA DOT
+//brackets
+%token LC RC LB RB LP RP 
+//calculation operator
+%token MUL DIV PLUS MINUS
+//relation operator
+%token LT LE GT GE EQ NE
+//logical operator
+%token AND OR NOT
+//others
+%token ASSIGN ID
 
-%token LC RC LB RB COLON COMMA
-%token STRING NUMBER LEADING_ZERO_NUMBER
-%token TRUE FALSE VNULL
+%right ASSIGN
+%left OR
+%left AND
+%left LT LE GT GE EQ NE
+%left PLUS MINUS
+%left MUL DIV
+%right NOT
+%left LC RC LB RB LP RP DOT
+// %nonassoc INT CHAR FLOAT ID
+// %nonassoc ELSE
+
+
 %%
+// high-level definition
+Program: ExtDefList
+    ;
+ExtDefList: ExtDef ExtDefList
+    | %empty
+    ;
+ExtDef: Specifier ExtDecList SEMI
+    | Specifier SEMI
+    | Specifier FunDec CompSt
+    ;
+ExtDecList: VarDec 
+    | VarDec COMMA ExtDecList
+    ;
 
-// | LC Members COMMA RC error { puts("should be closed with closing brace, recovered"); }
+// specifier
+Specifier: TYPE
+    | StructSpecifier
+    ;
+StructSpecifier: STRUCT ID LC DefList RC 
+    | STRUCT ID
+    ;
 
-Json:
-      Value
+// declarator
+VarDec: ID 
+    | VarDec LB INT RB
     ;
-Value:
-      Object
-    | Array
-    | STRING
-    | NUMBER
-    | LEADING_ZERO_NUMBER error { puts("Numbers cannot have leading zeroes, recovered"); }
-    | TRUE
-    | FALSE
-    | VNULL
+FunDec: ID LP VarList RP 
+    | ID LP RP 
     ;
-Object:
-      LC RC
-    // | LC Members COMMA { puts("Comma instead if closing brace, recovered"); }
-    | LC Members RC
-    | LC Members RC STRING error { puts("redundant string after object, recovered"); }
+VarList: ParamDec COMMA VarList
+    | ParamDec 
     ;
-Members:
-      Member
-    | Member COMMA Members
+ParamDec: Specifier VarDec 
     ;
-Member:
-      STRING COLON Value
-    | STRING COLON Value COMMA error { puts("Extra comma, recovered"); }
-    | STRING COLON COLON Value error { puts("Double colon, recovered"); }
-    | STRING Value error { puts("Missing colon, recovered"); }
-    | STRING COMMA Value error { puts("Comma instead of colon, recovered"); }
+
+// statement
+CompSt: LC DefList StmtList RC 
     ;
-Array:
-      LB RB
-    | LB Values RB
-    | LB Values COMMA RB  error { puts("extra comma, recovered"); } 
-    | LB Values RB COMMA error { puts("Comma after the close, recovered"); } 
-    | LB Values RC error { puts("unmatched right bracket, recovered"); }
-    | LB Values RB RB error { puts("redundant close, recovered"); }
-    | LB Value COLON Values RB error { puts("Colon instead of comma, recovered"); }
-    | LB Values error { puts("unclosed array, recovered"); }
+StmtList: Stmt StmtList
+    | %empty 
     ;
-Values:
-      Value
-    | Value COMMA error { puts("extra comma, recovered"); }
-    | Value COMMA COMMA error { puts("double extra comma, recovered"); }
-    | Value COMMA Values
-    | COMMA Values error { puts("missing value, recovered"); }
+Stmt: Exp SEMI 
+    | CompSt 
+    | RETURN Exp SEMI 
+    | IF LP Exp RP Stmt
+    | IF LP Exp RP Stmt ELSE Stmt
+    | WHILE LP Exp RP Stmt 
+    ;
+
+// local definition
+DefList: Def DefList
+    | %empty
+    ;
+Def: Specifier DecList SEMI 
+    ;
+DecList: Dec 
+    | Dec COMMA DecList 
+    ;
+Dec: VarDec 
+    | VarDec ASSIGN Exp 
+    ;
+    
+// Expression
+Exp: Exp ASSIGN Exp
+    | Exp AND Exp 
+    | Exp OR Exp 
+    | Exp LT Exp 
+    | Exp LE Exp 
+    | Exp GT Exp 
+    | Exp GE Exp 
+    | Exp NE Exp 
+    | Exp EQ Exp 
+    | Exp PLUS Exp 
+    | Exp MINUS Exp 
+    | Exp MUL Exp 
+    | Exp DIV Exp 
+    | LP Exp RP 
+    | MINUS Exp 
+    | NOT Exp 
+    | ID LP Args RP
+    | ID LP RP 
+    | Exp LB Exp RB 
+    | Exp DOT ID 
+    | ID 
+    | INT 
+    | FLOAT 
+    | CHAR 
+    ;
+Args: Exp COMMA Args
+    | Exp 
     ;
 %%
 
 void yyerror(const char *s){
-    printf("syntax error: ");
+    printf("syntax error: \n");
 }
 
 int main(int argc, char **argv){
@@ -68,6 +134,7 @@ int main(int argc, char **argv){
         fprintf(stderr, "Usage: %s <file_path>\n", argv[0]);
         exit(-1);
     }
+    // read a file
     else if(!(yyin = fopen(argv[1], "r"))) {
         perror(argv[1]);
         exit(-1);

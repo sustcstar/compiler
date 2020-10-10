@@ -1,2 +1,6 @@
 *.out
 *.yy.c
+*.tab.c
+*.tab.h
+test/*.out
+bin
