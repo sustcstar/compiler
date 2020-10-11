@@ -1,23 +1,39 @@
 %{
     #include"lex.yy.c"
+    parseTree *root;
     void yyerror(const char*);
 %}
+
+%locations
+
+%union{
+    struct parseTree *node;
+}
+
 //key words
-%token STRUCT RETURN IF ELSE WHILE
+%token <node> STRUCT RETURN IF ELSE WHILE
 //type
-%token INT CHAR FLOAT TYPE 
+%token <node> INT CHAR FLOAT TYPE 
 //symbol
-%token SEMI COMMA DOT
+%token <node> SEMI COMMA DOT
 //brackets
-%token LC RC LB RB LP RP 
+%token <node> LC RC LB RB LP RP 
 //calculation operator
-%token MUL DIV PLUS MINUS
+%token <node> MUL DIV PLUS MINUS
 //relation operator
-%token LT LE GT GE EQ NE
+%token <node> LT LE GT GE EQ NE
 //logical operator
-%token AND OR NOT
+%token <node> AND OR NOT
 //others
-%token ASSIGN ID
+%token <node> ASSIGN ID
+
+//--------------------------------nonterminals
+%type <node> Program ExtDefList ExtDef ExtDecList
+%type <node> Specifier StructSpecifier
+%type <node> VarDec FunDec VarList ParamDec
+%type <node> CompSt StmtList Stmt
+%type <node> DefList Def DecList Dec
+%type <node> Exp Args
 
 %right ASSIGN
 %left OR
@@ -30,98 +46,103 @@
 // %nonassoc INT CHAR FLOAT ID
 // %nonassoc ELSE
 
+        // yylloc.first_line = yylineno; \
+        // yylloc.first_column = yycolno; \
+        // yylloc.last_line = yylineno; \
+        // yylloc.last_column = yycolno + yyleng; \
+        // printf("first_line = %d\nfirst_column = %d\nlast_line = %d\nlast_column = %d\n", @1.first_line, @1.first_column, @1.last_line, @1.last_column); 
 
 %%
 // high-level definition
-Program: ExtDefList
+Program: ExtDefList { root = newNode("Program", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
-ExtDefList: ExtDef ExtDefList
-    | %empty
+ExtDefList: ExtDef ExtDefList { $$ = newNode("ExtDefList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | %empty { $$ = newNode("ExtDefList", NONTERMINAL, NULL, yylineno, 0); }
     ;
-ExtDef: Specifier ExtDecList SEMI
-    | Specifier SEMI
-    | Specifier FunDec CompSt
+ExtDef: Specifier ExtDecList SEMI { $$ = newNode("ExtDef", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Specifier SEMI { $$ = newNode("ExtDef", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | Specifier FunDec CompSt { $$ = newNode("ExtDef", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
-ExtDecList: VarDec 
-    | VarDec COMMA ExtDecList
+ExtDecList: VarDec { $$ = newNode("ExtDecList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | VarDec COMMA ExtDecList { $$ = newNode("ExtDecList", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
 
 // specifier
-Specifier: TYPE
-    | StructSpecifier
+Specifier: TYPE { $$ = newNode("Specifier", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | StructSpecifier { $$ = newNode("Specifier", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
-StructSpecifier: STRUCT ID LC DefList RC 
-    | STRUCT ID
+StructSpecifier: STRUCT ID LC DefList RC { $$ = newNode("StructSpecifier", NONTERMINAL, NULL, @1.first_line, 5, $1, $2, $3, $4, $5); }
+    | STRUCT ID { $$ = newNode("StructSpecifier", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     ;
 
 // declarator
-VarDec: ID 
-    | VarDec LB INT RB
+VarDec: ID { $$ = newNode("VarDec", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | VarDec LB INT RB { $$ = newNode("VarDec", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
     ;
-FunDec: ID LP VarList RP 
-    | ID LP RP 
+FunDec: ID LP VarList RP { $$ = newNode("FunDec", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
+    | ID LP RP { $$ = newNode("FunDec", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
-VarList: ParamDec COMMA VarList
-    | ParamDec 
+VarList: ParamDec COMMA VarList { $$ = newNode("VarList", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | ParamDec { $$ = newNode("VarList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
-ParamDec: Specifier VarDec 
+ParamDec: Specifier VarDec { $$ = newNode("ParamDec", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     ;
 
 // statement
-CompSt: LC DefList StmtList RC 
+CompSt: LC DefList StmtList RC { $$ = newNode("CompSt", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
     ;
-StmtList: Stmt StmtList
-    | %empty 
+StmtList: Stmt StmtList { $$ = newNode("StmtList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | %empty { $$ = newNode("StmtList", NONTERMINAL, NULL, yylineno, 0); }
     ;
-Stmt: Exp SEMI 
-    | CompSt 
-    | RETURN Exp SEMI 
-    | IF LP Exp RP Stmt
-    | IF LP Exp RP Stmt ELSE Stmt
-    | WHILE LP Exp RP Stmt 
+Stmt: Exp SEMI { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | CompSt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | RETURN Exp SEMI { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | IF LP Exp RP Stmt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 5, $1, $2, $3, $4, $5); }
+    | IF LP Exp RP Stmt ELSE Stmt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 7, $1, $2, $3, $4, $5, $6, $7); }
+    | WHILE LP Exp RP Stmt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 5, $1, $2, $3, $4, $5); }
     ;
 
 // local definition
-DefList: Def DefList
-    | %empty
+DefList: Def DefList { $$ = newNode("DefList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | %empty { $$ = newNode("DefList", NONTERMINAL, NULL, yylineno, 0); }
     ;
-Def: Specifier DecList SEMI 
+Def: Specifier DecList SEMI { $$ = newNode("Def", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
-DecList: Dec 
-    | Dec COMMA DecList 
+DecList: Dec { $$ = newNode("DecList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | Dec COMMA DecList { $$ = newNode("DecList", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
-Dec: VarDec 
-    | VarDec ASSIGN Exp 
+Dec: VarDec { $$ = newNode("Dec", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | VarDec ASSIGN Exp { $$ = newNode("Dec", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
     
 // Expression
-Exp: Exp ASSIGN Exp
-    | Exp AND Exp 
-    | Exp OR Exp 
-    | Exp LT Exp 
-    | Exp LE Exp 
-    | Exp GT Exp 
-    | Exp GE Exp 
-    | Exp NE Exp 
-    | Exp EQ Exp 
-    | Exp PLUS Exp 
-    | Exp MINUS Exp 
-    | Exp MUL Exp 
-    | Exp DIV Exp 
-    | LP Exp RP 
-    | MINUS Exp 
-    | NOT Exp 
-    | ID LP Args RP
-    | ID LP RP 
-    | Exp LB Exp RB 
-    | Exp DOT ID 
-    | ID 
-    | INT 
-    | FLOAT 
-    | CHAR 
+Exp: Exp ASSIGN Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp AND Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp OR Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp LT Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp LE Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp GT Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp GE Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp NE Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp EQ Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp PLUS Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp MINUS Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp MUL Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp DIV Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | LP Exp RP { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | MINUS Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | NOT Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | ID LP Args RP { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
+    | ID LP RP { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp LB Exp RB  { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
+    | Exp DOT ID { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | ID  { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | INT { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | FLOAT { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | CHAR { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
-Args: Exp COMMA Args
-    | Exp 
+Args: Exp COMMA Args { $$ = newNode("Args", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Exp { $$ = newNode("Args", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
 %%
 
@@ -140,5 +161,6 @@ int main(int argc, char **argv){
         exit(-1);
     }
     yyparse();
+    preOrderPrint(root, 0);
     return 0;
 }
