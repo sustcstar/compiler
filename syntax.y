@@ -43,8 +43,8 @@
 %left MUL DIV
 %right NOT
 %left LC RC LB RB LP RP DOT
-// %nonassoc INT CHAR FLOAT ID
-// %nonassoc ELSE
+%nonassoc INT CHAR FLOAT ID
+%nonassoc ELSE
 
         // yylloc.first_line = yylineno; \
         // yylloc.first_column = yycolno; \
@@ -56,7 +56,8 @@
 // high-level definition
 Program: ExtDefList { root = newNode("Program", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
-ExtDefList: ExtDef ExtDefList { $$ = newNode("ExtDefList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+ExtDefList: ExtDef { $$ = newNode("ExtDefList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | ExtDef ExtDefList { $$ = newNode("ExtDefList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     | %empty { $$ = newNode("ExtDefList", NONTERMINAL, NULL, yylineno, 0); }
     ;
 ExtDef: Specifier ExtDecList SEMI { $$ = newNode("ExtDef", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
@@ -68,6 +69,7 @@ ExtDecList: VarDec { $$ = newNode("ExtDecList", NONTERMINAL, NULL, @1.first_line
     ;
 
 // specifier
+// int/float/char/struct abc {...}
 Specifier: TYPE { $$ = newNode("Specifier", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     | StructSpecifier { $$ = newNode("Specifier", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
@@ -79,19 +81,24 @@ StructSpecifier: STRUCT ID LC DefList RC { $$ = newNode("StructSpecifier", NONTE
 VarDec: ID { $$ = newNode("VarDec", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     | VarDec LB INT RB { $$ = newNode("VarDec", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
     ;
+// 函数定义
 FunDec: ID LP VarList RP { $$ = newNode("FunDec", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
     | ID LP RP { $$ = newNode("FunDec", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
+// 变量列表
 VarList: ParamDec COMMA VarList { $$ = newNode("VarList", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     | ParamDec { $$ = newNode("VarList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
+// 参数定义
 ParamDec: Specifier VarDec { $$ = newNode("ParamDec", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     ;
 
 // statement
-CompSt: LC DefList StmtList RC { $$ = newNode("CompSt", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
+CompSt: LC StmtList RC { $$ = newNode("CompSt", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | LC DefList StmtList RC { $$ = newNode("CompSt", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
     ;
-StmtList: Stmt StmtList { $$ = newNode("StmtList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+StmtList: Stmt { $$ = newNode("StmtList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | Stmt StmtList { $$ = newNode("StmtList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     | %empty { $$ = newNode("StmtList", NONTERMINAL, NULL, yylineno, 0); }
     ;
 Stmt: Exp SEMI { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
@@ -103,6 +110,7 @@ Stmt: Exp SEMI { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 2, $1, $
     ;
 
 // local definition
+// 类似int a,b,c 这样的东西
 DefList: Def DefList { $$ = newNode("DefList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     | %empty { $$ = newNode("DefList", NONTERMINAL, NULL, yylineno, 0); }
     ;

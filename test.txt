@@ -22,7 +22,6 @@ Program (1)
         RP
       CompSt (2)
         LC
-        DefList (3)
         StmtList (3)
           Stmt (3)
             Exp (3)
@@ -46,28 +45,22 @@ Program (1)
               Stmt (5)
                 CompSt (5)
                   LC
-                  DefList (6)
                   StmtList (6)
                     Stmt (6)
                       RETURN
                       Exp (6)
                         ID: a
                       SEMI
-                    StmtList (7)
                   RC
               ELSE
               Stmt (9)
                 CompSt (9)
                   LC
-                  DefList (10)
                   StmtList (10)
                     Stmt (10)
                       RETURN
                       Exp (10)
                         ID: b
                       SEMI
-                    StmtList (11)
                   RC
-            StmtList (12)
         RC
-    ExtDefList (13)
