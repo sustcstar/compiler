@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<stdarg.h>
+#include<string.h>
 #include"parseTree.h"
 
 // （1）va_list
@@ -29,7 +30,7 @@ parseTree *newNode(char *token_name, int type, char *attribute, int lineno, int 
 
     node->token_name = token_name;
     node->type = type;
-    node->attribute = attribute;
+    node->attribute.str_attribute = attribute;
     node->lineno = lineno;
     node->kids_num = kids_num;
     
@@ -75,7 +76,12 @@ void preOrderPrint(parseTree *root, int spacenum){
         printf("%s (%d)\n", root->token_name, root->lineno);
     }
     else if(root->type == TERMINAL_VALUE){
-        printf("%s: %s\n", root->token_name, root->attribute);
+        if(strcmp(root->token_name, "INT") == 0){
+            printf("%s: %d\n", root->token_name, root->attribute.value_attribute);
+        }
+        else{
+            printf("%s: %s\n", root->token_name, root->attribute.str_attribute);
+        }
     }
     else{ //TERMINAL_NOVALUE
         printf("%s\n", root->token_name);

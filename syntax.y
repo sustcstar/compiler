@@ -1,7 +1,10 @@
 %{
     #include"lex.yy.c"
     parseTree *root;
+    int error;
+    // int yydebug = 1;
     void yyerror(const char*);
+    void errorMessage(int lineno, char *str, ...);
 %}
 
 %locations
@@ -83,6 +86,7 @@ VarDec: ID { $$ = newNode("VarDec", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     ;
 // 函数定义
 FunDec: ID LP VarList RP { $$ = newNode("FunDec", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
+    | ID LP error { error = 1; errorMessage(@2.last_line, "Missing closing parenthesis ')'"); }
     | ID LP RP { $$ = newNode("FunDec", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
 // 变量列表
@@ -102,8 +106,10 @@ StmtList: Stmt { $$ = newNode("StmtList", NONTERMINAL, NULL, @1.first_line, 1, $
     | %empty { $$ = newNode("StmtList", NONTERMINAL, NULL, yylineno, 0); }
     ;
 Stmt: Exp SEMI { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+    | error SEMI { error = 1; errorMessage(@2.last_line, "Some problems happen at this line.");}
     | CompSt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     | RETURN Exp SEMI { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | RETURN Exp error { error = 1; errorMessage(@2.last_line, "Missing semicolon ';'"); }
     | IF LP Exp RP Stmt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 5, $1, $2, $3, $4, $5); }
     | IF LP Exp RP Stmt ELSE Stmt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 7, $1, $2, $3, $4, $5, $6, $7); }
     | WHILE LP Exp RP Stmt { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 5, $1, $2, $3, $4, $5); }
@@ -111,16 +117,20 @@ Stmt: Exp SEMI { $$ = newNode("Stmt", NONTERMINAL, NULL, @1.first_line, 2, $1, $
 
 // local definition
 // 类似int a,b,c 这样的东西
-DefList: Def DefList { $$ = newNode("DefList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
+DefList: Def { $$ = newNode("DefList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
+    | Def DefList { $$ = newNode("DefList", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     | %empty { $$ = newNode("DefList", NONTERMINAL, NULL, yylineno, 0); }
     ;
 Def: Specifier DecList SEMI { $$ = newNode("Def", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | Specifier DecList error { error = 1; errorMessage(@2.last_line, "Missing semicolon ';'"); }
     ;
 DecList: Dec { $$ = newNode("DecList", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     | Dec COMMA DecList { $$ = newNode("DecList", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     ;
 Dec: VarDec { $$ = newNode("Dec", NONTERMINAL, NULL, @1.first_line, 1, $1); }
     | VarDec ASSIGN Exp { $$ = newNode("Dec", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
+    | VarDec ASSIGN error { error = 1; }
+    //TO: Fix
     ;
     
 // Expression
@@ -141,6 +151,7 @@ Exp: Exp ASSIGN Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $
     | MINUS Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     | NOT Exp { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 2, $1, $2); }
     | ID LP Args RP { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
+    | ID LP error { error = 1; errorMessage(@2.last_line, "Missing closing parenthesis ')'"); }
     | ID LP RP { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
     | Exp LB Exp RB  { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 4, $1, $2, $3, $4); }
     | Exp DOT ID { $$ = newNode("Exp", NONTERMINAL, NULL, @1.first_line, 3, $1, $2, $3); }
@@ -155,10 +166,21 @@ Args: Exp COMMA Args { $$ = newNode("Args", NONTERMINAL, NULL, @1.first_line, 3,
 %%
 
 void yyerror(const char *s){
-    printf("syntax error: \n");
+    // printf("syntax error: yylineo = %d\n",yylineno);
+}
+
+void errorMessage(int lineno, char *str, ...){
+    printf("Error type B at Line %d: ", lineno);
+    va_list args;
+    va_start(args, str);
+    vprintf(str, args);
+    printf("\n");
 }
 
 int main(int argc, char **argv){
+
+    error = 0;
+
     if(argc != 2) {
         fprintf(stderr, "Usage: %s <file_path>\n", argv[0]);
         exit(-1);
@@ -169,6 +191,13 @@ int main(int argc, char **argv){
         exit(-1);
     }
     yyparse();
-    preOrderPrint(root, 0);
+    if(error){
+        //if error == 1, do something
+    }
+    else{
+        preOrderPrint(root, 0);
+    }
     return 0;
 }
+
+

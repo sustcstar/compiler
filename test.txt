@@ -4,63 +4,55 @@ Program (1)
       Specifier (1)
         TYPE: int
       FunDec (1)
-        ID: test_1_r01
+        ID: test_1_o02
         LP
-        VarList (1)
-          ParamDec (1)
-            Specifier (1)
-              TYPE: int
-            VarDec (1)
-              ID: a
-          COMMA
-          VarList (1)
-            ParamDec (1)
-              Specifier (1)
-                TYPE: int
-              VarDec (1)
-                ID: b
         RP
       CompSt (2)
         LC
-        StmtList (3)
-          Stmt (3)
-            Exp (3)
-              Exp (3)
-                ID: c
-              ASSIGN
-              Exp (3)
-                CHAR: 'c'
+        DefList (3)
+          Def (3)
+            Specifier (3)
+              TYPE: int
+            DecList (3)
+              Dec (3)
+                VarDec (3)
+                  ID: dec_int
+                ASSIGN
+                Exp (3)
+                  INT: 323
             SEMI
-          StmtList (4)
-            Stmt (4)
-              IF
-              LP
-              Exp (4)
-                Exp (4)
-                  ID: a
-                GT
-                Exp (4)
-                  ID: b
-              RP
-              Stmt (5)
-                CompSt (5)
-                  LC
-                  StmtList (6)
-                    Stmt (6)
-                      RETURN
-                      Exp (6)
-                        ID: a
-                      SEMI
-                  RC
-              ELSE
-              Stmt (9)
-                CompSt (9)
-                  LC
-                  StmtList (10)
-                    Stmt (10)
-                      RETURN
-                      Exp (10)
-                        ID: b
-                      SEMI
-                  RC
+          DefList (4)
+            Def (4)
+              Specifier (4)
+                TYPE: int
+              DecList (4)
+                Dec (4)
+                  VarDec (4)
+                    ID: hex_int
+                  ASSIGN
+                  Exp (4)
+                    INT: 4095
+              SEMI
+            DefList (5)
+              Def (5)
+                Specifier (5)
+                  TYPE: char
+                DecList (5)
+                  Dec (5)
+                    VarDec (5)
+                      ID: ch
+                    ASSIGN
+                    Exp (5)
+                      CHAR: '\xC0'
+                SEMI
+        StmtList (6)
+          Stmt (6)
+            RETURN
+            Exp (6)
+              Exp (6)
+                ID: hex_int
+              MINUS
+              Exp (6)
+                ID: dec_int
+            SEMI
         RC

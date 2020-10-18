@@ -11,7 +11,10 @@
 typedef struct parseTree{
     char *token_name; //terminal_names, and all nonterminal_names
     int type; //nonterminal, terminal with attribute, terminal with no attribute
-    char *attribute; //int/float/char/ID values
+    union{
+        char *str_attribute; //int/float/char/ID values
+        int value_attribute; //int/float/char/ID values
+    }attribute;
     int lineno;
     int kids_num;
     struct parseTree **kids;

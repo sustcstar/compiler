@@ -4,7 +4,7 @@ BISON=bison
 splc: .lex .syntax
 	@rm -rf bin/
 	@mkdir bin
-	$(CC) parseTree.c syntax.tab.c -lfl -ly -o bin/splc
+	$(CC) parseTree.c syntax.tab.c -lfl -ly -g -o bin/splc
 	@chmod +x bin/splc
 lexer: .lex
 	$(CC) lex.yy.c -lfl -o lexer.out
