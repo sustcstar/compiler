@@ -1,0 +1,17 @@
+int main(){
+
+    int a,b,c;
+
+    a = 5;
+    b = 6;
+/*
+    if(a > b){
+        c = 0;
+    }
+*/
+
+    c = 0ab;
+    
+    return 0;
+
+}

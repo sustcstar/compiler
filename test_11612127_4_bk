@@ -1,0 +1,17 @@
+int main(){
+
+    Stream stream;
+
+    try{
+        stream = turnOnStream();
+    }
+    catch{
+        system.printStack();
+    }
+    finally{
+        turnOffStream(stream);
+    }
+
+    return 0;
+
+}

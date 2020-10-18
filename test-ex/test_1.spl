@@ -1,0 +1,19 @@
+int main(){
+
+    int a,b,c;
+
+    a = 5;
+    b = 6;
+
+    if(a > b){
+        c = 0;
+    }
+    else{
+        //flag = 0;
+        c = 1;
+    }
+
+    // int a.b.c;
+    
+    return 0;
+}

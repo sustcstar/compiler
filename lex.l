@@ -14,6 +14,7 @@
         yycolno += yyleng;
 %}
 %option yylineno
+%x COMMENT
 
 number 0|[1-9][0-9]*
 hex ("0x"|"0X")(0|[1-9a-fA-F][0-9a-fA-F]*)
@@ -108,47 +109,47 @@ empty [ \r\t]
 {LC} { yylval.node = newNode("LC", TERMINAL_NOVALUE, NULL, yylineno, 0); return LC; }
 {RC} { yylval.node = newNode("RC", TERMINAL_NOVALUE, NULL, yylineno, 0); return RC; }
 "\n" { yycolno = 1; }
+"//" { char c; while((c=input()) != '\n'); }
+"/*" { BEGIN(COMMENT); }
+<COMMENT>"*/" { BEGIN(INITIAL); }
+<COMMENT>.    { }
+<COMMENT>\n   { }
+<COMMENT>"/*"   {
+    error = 1; 
+    printf("Error type A at Line %d: multi-line comments cannot be nested\n", yylineno);
+}
+
 {empty} {}
 {WRONGID} { error = 1; printf("Error type A at Line %d: Unknown characters \'%s\'\n", 
 yylineno, yytext); }
 . { error = 1; printf("Error type A at Line %d: Unknown characters \'%s\'\n", 
 yylineno, yytext); }
 %%
-/* 将大写字母转化成小写字母 */
 
-int tolower(int c)
-{
-    if (c >= 'A' && c <= 'Z')
-    {
+int tolower(int c){
+    if (c >= 'A' && c <= 'Z'){
         return c + 'a' - 'A';
     }
-    else
-    {
+    else{
         return c;
     }
 }
 
 /* 将十六进制字符串转化成十进制整数 */
-int htoi(char *s)
-{
+int htoi(char *s){
     int i;
     int n = 0;
-    if (s[0] == '0' && (s[1]=='x' || s[1]=='X'))
-    {
+    if (s[0] == '0' && (s[1]=='x' || s[1]=='X')){
         i = 2;
     }
-    else
-    {
+    else{
         i = 0;
     }
-    for (; (s[i] >= '0' && s[i] <= '9') || (s[i] >= 'a' && s[i] <= 'z') || (s[i] >='A' && s[i] <= 'Z');++i)
-    {
-        if (tolower(s[i]) > '9')
-        {
+    for (; (s[i] >= '0' && s[i] <= '9') || (s[i] >= 'a' && s[i] <= 'z') || (s[i] >='A' && s[i] <= 'Z');++i){
+        if (tolower(s[i]) > '9'){
             n = 16 * n + (10 + tolower(s[i]) - 'a');
         }
-        else
-        {
+        else{
             n = 16 * n + (tolower(s[i]) - '0');
         }
     }
