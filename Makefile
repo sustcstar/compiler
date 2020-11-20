@@ -1,17 +1,20 @@
-CC=gcc
+PLUSPLUS=g++
 FLEX=flex
 BISON=bison
 splc: .lex .syntax
 	@rm -rf bin/
 	@mkdir bin
-	$(CC) parseTree.c syntax.tab.c -lfl -ly -g -o bin/splc
+	$(PLUSPLUS) parseTree.cpp syntax.tab.c reportError.cpp semantic.cpp -lfl -ly -g -o bin/splc 
 	@chmod +x bin/splc
 lexer: .lex
-	$(CC) lex.yy.c -lfl -o lexer.out
+	$(PLUSPLUS) lex.yy.c -lfl -o lexer.out
+# test: .lex .syntax
+# 	$(PLUSPLUS) -Wall -Wextra -O -ansi -pedantic -shared -fPIC parseTree.cpp syntax.tab.c semantic.cpp -lfl -ly -g -o bin/splc.so
+# -Wno-write-strings -Wno-int-to-pointer-cast
 .lex: lex.l
 	$(FLEX) lex.l
 .syntax: syntax.y
-	$(BISON) -t -d syntax.y
+	$(BISON) -t -d -v syntax.y
 clean:
 	@rm -rf bin/
 	@rm -f lex.yy.c syntax.tab.* *.out

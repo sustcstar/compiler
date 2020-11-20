@@ -2,7 +2,7 @@
 #include<stdlib.h>
 #include<stdarg.h>
 #include<string.h>
-#include"parseTree.h"
+#include"parseTree.hpp"
 
 // （1）va_list
 
@@ -20,7 +20,7 @@
 // 清空参数列表, 并置参数指针arg_ptr无效.
 // （注：va在这里是variable-argument(可变参数)的意思. 这些宏定义在stdarg.h中,所以用到可变参数的程序应该包含这个头文件）
 
-parseTree *newNode(char *token_name, int type, char *attribute, int lineno, int kids_num, ...){
+parseTree *newNode(std::string token_name, int type, char *attribute, int lineno, int kids_num, ...){
     /*  1. 分配一个新node空间
         2. 分配可以直接分配的值
         3. 根据kidsnum分配空间
@@ -51,19 +51,6 @@ parseTree *newNode(char *token_name, int type, char *attribute, int lineno, int 
     return node;
 }
 
-// typedef struct parseTree{
-//     char *token_name; //terminal_names, and all nonterminal_names
-//     int type; //nonterminal, terminal with attribute, terminal with no attribute
-//     char *attribute; //int/float/char/ID values
-//     int lineno;
-//     int kids_num;
-//     struct parseTree **kids;
-// }parseTree;
-
-// #define NONTERMINAL 0
-// #define TERMINAL_VALUE 1
-// #define TERMINAL_NOVALUE 2
-
 void printSpace(int spacenum){
     for(int i = 0;i < spacenum;i++){
         printf(" ");
@@ -73,18 +60,18 @@ void printSpace(int spacenum){
 void preOrderPrint(parseTree *root, int spacenum){
     printSpace(spacenum);
     if(root->type == NONTERMINAL){
-        printf("%s (%d)\n", root->token_name, root->lineno);
+        printf("%s (%d)\n", root->token_name.c_str(), root->lineno);
     }
     else if(root->type == TERMINAL_VALUE){
-        if(strcmp(root->token_name, "INT") == 0){
-            printf("%s: %d\n", root->token_name, root->attribute.value_attribute);
+        if(root->token_name.compare("INT") == 0){
+            printf("%s: %d\n", root->token_name.c_str(), root->attribute.value_attribute);
         }
         else{
-            printf("%s: %s\n", root->token_name, root->attribute.str_attribute);
+            printf("%s: %s\n", root->token_name.c_str(), root->attribute.str_attribute);
         }
     }
     else{ //TERMINAL_NOVALUE
-        printf("%s\n", root->token_name);
+        printf("%s\n", root->token_name.c_str());
     }
     for(int i = 0;i < root->kids_num;i++){
         preOrderPrint(root->kids[i], spacenum + 2);

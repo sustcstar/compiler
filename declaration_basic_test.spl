@@ -1,0 +1,10 @@
+int abcd;
+float abc;
+char ab;
+int abcd;
+float abc;
+char ab;
+int a[5];
+float b[6];
+char c[7];
+float a[4];

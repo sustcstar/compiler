@@ -1,10 +1,12 @@
 %{
     #include"lex.yy.c"
+    #include"reportError.hpp"
+    #include"semantic.hpp"
+    // #include<iostream>
     parseTree *root;
-    int error;
     // int yydebug = 1;
     void yyerror(const char*);
-    void errorMessage(int lineno, char *str, ...);
+    void errorMessage(int lineno, const char *str, ...);
 %}
 
 %locations
@@ -169,7 +171,7 @@ void yyerror(const char *s){
     // printf("syntax error: yylineo = %d\n",yylineno);
 }
 
-void errorMessage(int lineno, char *str, ...){
+void errorMessage(int lineno, const char *str, ...){
     printf("Error type B at Line %d: ", lineno);
     va_list args;
     va_start(args, str);
@@ -191,12 +193,19 @@ int main(int argc, char **argv){
         exit(-1);
     }
     yyparse();
+
+    // lexical and syntactic analysis
     if(error){
         //if error == 1, do something
     }
     else{
         preOrderPrint(root, 0);
+
+        // semantic analysis 前面两个没错，才会做语法分析
+        semanticCheck(root);
     }
+
+
     return 0;
 }
 
