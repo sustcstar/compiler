@@ -1,17 +1,10 @@
-struct my_struct abc;
+int d;
 
-struct my_struct{
+int main(){
     int a,b,c;
-    char b;
-    int c;
-};
+}
 
-struct my_struct abcd;
-
-
-struct my_struct2{
+int function1(){
     int a;
-    int b;
-}a1,a2,a3;
+}
 
-struct my_struct a1;

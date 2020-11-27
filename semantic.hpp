@@ -9,7 +9,7 @@ class Type{
     public:
     std::string name;
     int scope_level;
-    enum Type_category {INT, FLOAT, CHAR, ARRAY, STRUCTURE} type_category;
+    enum Type_category {INT, FLOAT, CHAR, ARRAY, STRUCTURE, FUNCTION} type_category;
 
     Type(std::string name, int scope_level, enum Type_category type_category){
         this->name = name;
@@ -36,6 +36,17 @@ class Structure: public Type{
     Structure(std::string name, int scope_level, std::map<std::string, Type *> fieldList):Type(name, scope_level, STRUCTURE){
         this->fieldList = fieldList;
     } 
+};
+
+class Function: public Type{
+    public:
+    Type *return_type;
+    std::map<std::string, Type *> fieldList;
+
+    Function(std::string name, Type *return_type, std::map<std::string, Type *> fieldList):Type(name, 0, FUNCTION){
+        this->return_type = return_type;
+        this->fieldList = fieldList;
+    }
 };
 
 void semanticCheck(parseTree *root);

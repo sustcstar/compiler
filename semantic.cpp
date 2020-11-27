@@ -7,12 +7,19 @@
 //假设1：不会在函数内部定义结构体, 只有全局定义结构体
 //假设2：只有全局scope
 //假设3：结构体成员变量不包括结构体
+//假设4：数组和结构体不会初始化
+//假设5：全局变量不会在定义的时候初始化
+//假设6：没有void返回值的函数
+//假设7：变量名和函数名不可重复
 
 //实现1：实现基本类型（无赋值）的插入符号表以及检查是否重复（名称）
 //实现2：实现基本类型多维数组（无赋值）的插入符号表以及检查是否重复（名称）
 //实现3：实现结构体（无赋值）的插入符号表以及检查是否重复（名称）\
-        结构体内的成员变量不赋值，且不会使用int a,b,c这种连续定义（一行定义一个）
+        结构体内的成员变量不赋值，且不会使用int a,b,c这种连续定义（一行定义一个） 已经实现连续定义
 //实现4：实现基本类型、多维数组、以及结构体的单行多次定义，包括结构体内部的参数的单行多次定义（包括重复检测）
+//实现5：实现函数定义，并检查函数名重复性，以及参数名重复性，参数可以是结构体
+//实现6：实现在一个compst内的定义变量(暂时没有scope)
+//预备7：在compst内部，使得定义变量的同时初始化变量成为可能。
 
 //改进1：可以把插入表的地方放在一个高层，统一起来，下层的函数都是返回变量pair,\
         下层都用vector返回pair,上层则用map看搜集，看是否有重复，看情况报错 --已经完成
@@ -27,11 +34,16 @@
 //想法2：或者把一个fiedlist作为参数传下去，也可以达到目标
 //想法3：等解決了函數内部定义变量再考虑这个问题，因为这两个会互相影响
 
+//问题3：checkDefList不会会返回包含有同名变量的list，但是可能会返回symbol_table中\
+        已经存在的变量名，且报错行数有错误
+//暂时的解决：使用oooooops在代码中作为一个醒目的标志，先不管这个，等引入scope后再管
+
 FILE *out;
 int current_scope_level;
 std::map<std::string, Type *> symbol_table; //用来存变量的，检测变量名是否重合
 std::map<std::string, Type *> structure_table; //用来存用户定义类型的，检测是否重复定义了类型
 
+//finished
 void debug_log(const char *str, ...){
 #if  SE_DEBUG==1
     va_list args;
@@ -41,6 +53,7 @@ void debug_log(const char *str, ...){
 #endif
 }
 
+//finished
 void debug_print_symbol_map(){
 #if  SE_DEBUG==1 
     int count = 0;
@@ -52,6 +65,7 @@ void debug_print_symbol_map(){
 #endif
 }
 
+//finished
 void debug_print_structure_map(){
 #if  SE_DEBUG==1 
     int count = 0;
@@ -63,6 +77,21 @@ void debug_print_structure_map(){
 #endif
 }
 
+//finished
+void putAMapIntoSymbolTable(std::map<std::string, Type *> themap, parseTree *node){
+    for (auto themap_iter=themap.begin(); themap_iter!=themap.end(); themap_iter++){
+        auto symbol_iter = symbol_table.find(themap_iter->first);
+        if(symbol_iter != symbol_table.end()){  //symbol_table中已有这个key
+            std::cout<<"Ooooooops!!!, checkList return multiple defined variables!"<<std::endl;
+            reportError(out, T3_VAR_REDEF, node->lineno);
+        }
+        else{   //symbol_table中没有这个key，插入
+            symbol_table.insert(*themap_iter);
+        }
+    }
+}
+
+//finished
 bool key_in_map(std::map<std::string, Type *> themap, std::string key){
     bool flag;
 
@@ -89,7 +118,6 @@ bool variableDefined(std::string name){
     }
     return flag;
 }
-
 
 //finished 是类型定义重复，不是id重复
 bool structDefined(std::string name){
@@ -302,6 +330,83 @@ std::vector<std::pair<std::string, Type *>> checkExtDecList(parseTree *node, Typ
     return variableList;
 }
 
+//finished, 这个函数的目的就是返回一个pair
+std::pair<std::string, Type *> checkParamDec(parseTree *node){
+    Type *type;
+
+    type = checkSpecifier(node->kids[0]);
+    return checkVarDec(node->kids[1], type);
+}
+
+//finished
+std::map<std::string, Type *> checkVarList(parseTree *node){
+    std::map<std::string, Type *> paramList;
+    // //我希望checkParamDec能够返回一个<string, type *> pair
+    auto param = checkParamDec(node->kids[0]);
+    if(node->kids_num > 1){ //checkVarList
+        auto paramSubList = checkVarList(node->kids[2]);
+        paramList = paramSubList;
+    }
+    if(key_in_map(paramList, param.first)){ //形参的名字重复啦！
+        reportError(out, T3_VAR_REDEF, node->lineno);
+        paramList.clear();
+    }
+    else{
+        paramList.insert(param); //形参名字不重复，插入参数列表
+    }
+    return paramList;
+}
+
+//finished
+std::pair<std::string, Type *> checkFunDec(parseTree *node, Type *type){
+    Type *function;
+    //1. 检查变量名是否重复
+    // debug_log("func_id = 0x%px.\n", node->kids[1]->attribute.str_attribute);
+    std::string id(node->kids[0]->attribute.str_attribute);
+    debug_log("func_id = %s.\n", id.c_str());
+    if(variableDefined(id)){
+        reportError(out, T4_FUNC_REDEF, node->lineno);
+        function = NULL;
+        return make_pair(id, function);
+    }
+    //2. 检查是否有形参
+    if(node->kids_num == 3){ //无形参
+        std::map<std::string, Type *> paramList;
+        function = new Function(id, type, paramList);
+    }
+    else if(node->kids_num == 4){ //有形参    //3. 检查形参互相之间是否有重复
+        auto paramList = checkVarList(node->kids[2]);
+        if(paramList.size() == 0){ //如果下层出现问题，则返回空空的参数列表
+            function = NULL;
+            return make_pair(id, function);
+        }
+        else{
+            function = new Function(id, type, paramList);
+        }
+    } 
+    //4. 向上层返回Type *, 如果函数有错误，则返回NULL
+    return make_pair(id, function);
+}
+
+void checkStmtList(parseTree *node, Function *funDec){
+
+}
+
+void checkCompSt(parseTree *node, Function *funDec){
+    debug_log("kids_num = %d\n", node->kids_num);
+    debug_log("node->name = %s\n", node->token_name.c_str());
+    if(node->kids_num == 3){    //直接StmtList
+        checkStmtList(node->kids[1], funDec);
+    }
+    else{   //先DefList再StmtList 
+        auto variableList = checkDefList(node->kids[1]); //假设已经在下一层检查过
+        putAMapIntoSymbolTable(variableList, node); //把它们插入symbol_table
+        debug_print_symbol_map();
+        checkStmtList(node->kids[2], funDec);
+    }
+}
+
+//finished
 void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代表着global_scope每一行的定义
     Type *type;
 
@@ -325,7 +430,16 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
     }
     else if(node->kids[1]->token_name.compare("FunDec") == 0){
         //是一个函数定义
-        
+        debug_log("In checkExtDef, before checkFunDec.\n");
+        auto function = checkFunDec(node->kids[1], type);
+        debug_log("In checkExtDef, after checkFunDec.\n");
+        if(function.second != NULL){ //在下层已经检查过，知道没问题
+            symbol_table.insert(function);
+            Function *funDec = (Function *)function.second;
+            debug_log("In checkExtDef, before checkCompSt.\n");
+            checkCompSt(node->kids[2], funDec);
+            debug_log("In checkExtDef, after checkCompSt.\n");
+        }
     }
 }
 
