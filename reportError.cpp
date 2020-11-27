@@ -57,6 +57,9 @@ void reportError(FILE *out, int INFO_type, int lineno){
         case T15_STRUCTURE_REDEF:
             ss << "redefine the same structure type";
             break;
+        case T16_STRUCTURE_NODEF:
+            ss << "the structure type is not defined yet";
+            break;
         default:
             break;
     }

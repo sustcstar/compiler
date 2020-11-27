@@ -1,10 +1,17 @@
-int abcd;
-float abc;
-char ab;
-int abcd;
-float abc;
-char ab;
-int a[5];
-float b[6];
-char c[7];
-float a[4];
+struct my_struct abc;
+
+struct my_struct{
+    int a,b,c;
+    char b;
+    int c;
+};
+
+struct my_struct abcd;
+
+
+struct my_struct2{
+    int a;
+    int b;
+}a1,a2,a3;
+
+struct my_struct a1;

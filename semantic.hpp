@@ -1,6 +1,7 @@
 #ifndef SEMANTIC_HPP
 #define SEMANTIC_HPP
 #include<iostream>
+#include<map>
 #include<vector>
 #include"parseTree.hpp"
 
@@ -30,9 +31,9 @@ class Array: public Type{
 
 class Structure: public Type{
     public:
-    std::vector<Type> fieldList;
+    std::map<std::string, Type *> fieldList;
 
-    Structure(std::string name, int scope_level, std::vector<Type> fieldList):Type(name, scope_level, STRUCTURE){
+    Structure(std::string name, int scope_level, std::map<std::string, Type *> fieldList):Type(name, scope_level, STRUCTURE){
         this->fieldList = fieldList;
     } 
 };
