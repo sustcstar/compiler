@@ -2,6 +2,7 @@
 #include"reportError.hpp"
 #include <stdarg.h>
 #include <map>
+
 #define SE_DEBUG 1
 
 //假设1：不会在函数内部定义结构体, 只有全局定义结构体
@@ -11,6 +12,7 @@
 //假设5：全局变量不会在定义的时候初始化
 //假设6：没有void返回值的函数
 //假设7：变量名和函数名不可重复
+//假设8：暂时默认函数名相同，则两个函数相等
 
 //实现1：实现基本类型（无赋值）的插入符号表以及检查是否重复（名称）
 //实现2：实现基本类型多维数组（无赋值）的插入符号表以及检查是否重复（名称）
@@ -19,10 +21,14 @@
 //实现4：实现基本类型、多维数组、以及结构体的单行多次定义，包括结构体内部的参数的单行多次定义（包括重复检测）
 //实现5：实现函数定义，并检查函数名重复性，以及参数名重复性，参数可以是结构体
 //实现6：实现在一个compst内的定义变量(暂时没有scope)
-//预备7：在compst内部，使得定义变量的同时初始化变量成为可能。
+//实现7：在表达式仅为基本类型时（不包括ID），可以用于初始化变量。
+//预备8：实现exp框架，之后再修复(实现这行可以去掉)
 
 //改进1：可以把插入表的地方放在一个高层，统一起来，下层的函数都是返回变量pair,\
         下层都用vector返回pair,上层则用map看搜集，看是否有重复，看情况报错 --已经完成
+
+//改进2：每过一行变量定义，就把该行的变量们都插入符号表，这样下一行就可以继续调用这一行的变量。
+//想法1：先这么放着
 
 //问题1：结构体内部的同名参数不会报错
 //想法1：我认为结构体内部的定义和函数内部的定义是一个东西，所以只要在checkDefList \
@@ -37,6 +43,9 @@
 //问题3：checkDefList不会会返回包含有同名变量的list，但是可能会返回symbol_table中\
         已经存在的变量名，且报错行数有错误
 //暂时的解决：使用oooooops在代码中作为一个醒目的标志，先不管这个，等引入scope后再管
+
+//问题4：varDec在被定义的时候，即便右边exp检查不对劲，仍会返回该变量，该变量仍算作被定义
+//解决：就这样吧
 
 FILE *out;
 int current_scope_level;
@@ -198,16 +207,89 @@ std::pair<std::string, Type *> checkVarDec(parseTree *node, Type *type){
     }
 }
 
-// 我希望checkDec能够返回一个<string, type *> pair
+//finished
+Type *checkPrimitive(parseTree *node){
+    debug_log("In checkPrimitive\n");
+    debug_log("node->token_name = %s\n", node->token_name.c_str());
+    std::string value(node->token_name);
+    Type *primitive;
+
+    if(value.compare("INT") == 0){
+        primitive = new Type("", current_scope_level, Type::INT);
+    }
+    else if(value.compare("FLOAT") == 0){
+        primitive = new Type("", current_scope_level, Type::FLOAT);
+    }
+    else if(value.compare("CHAR") == 0){
+        primitive = new Type("", current_scope_level, Type::CHAR);
+    }
+    return primitive;
+}
+
+//如果不匹配，报个错就完事了。type为该表达式应该匹配的类型
+void checkExp(parseTree *node, Type *type){
+    debug_log("exp->kids_num = %d\n", node->kids_num);
+    if(node->kids_num == 1){
+        // ID/INT/FLOAT/CHAR
+        debug_log("exp->kids[0]->token_name = %s\n", node->kids[0]->token_name.c_str());
+        if(node->kids[0]->token_name.compare("ID") == 0){
+            //根据ID获得Type, 再进行比较
+            std::string id(node->kids[0]->attribute.str_attribute);
+            auto pair = symbol_table.find(id);
+            if(pair != symbol_table.end()){
+                //1. ID存在, 获得Type并比较
+                if(type == pair->second){ //1-1. 两个类型相等，返回
+                    return;
+                }
+                else{ //1-2.两个类型不相等，报错
+                    reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
+                }
+            }
+            else{
+                //2. ID不存在，报错
+                reportError(out, T1_VAR_USED_NO_DEF, node->lineno);
+            }
+        }
+        else{ //INT/FLOAT/CHAR, 构造一个类型，再进行Type之间的比较
+            debug_log("Before checkPrimitive\n");
+            Type *primitive = checkPrimitive(node->kids[0]);
+            debug_log("After checkPrimitive\n");
+            if(*type == *primitive){
+                debug_log("type == primitive\n");
+                return;
+            }
+            else{
+                debug_log("type != primitive\n");
+                reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
+            }
+        }
+    }
+    else if(node->kids_num == 2){
+        // MINUS Exp/NOT Exp
+    }
+    else if(node->kids_num == 3){
+        // Exp ASSIGN Exp/Exp AND Exp/Exp OR Exp/Exp LT Exp
+        // Exp LE Exp/Exp GT Exp/Exp GE Exp/Exp NE Exp
+        // Exp EQ Exp/Exp PLUS Exp/Exp MINUS Exp/Exp MUL Exp
+        // Exp DIV Exp/LP Exp RP/ID LP RP/Exp DOT ID
+    }
+    else if(node->kids_num == 4){
+        // ID LP Args RP/Exp LB Exp RB
+    }
+    else{
+        debug_log("Oooooops! Unexpected behavior!\n");
+    }
+}
+
+//finished 我希望checkDec能够返回一个<string, type *> pair
 std::pair<std::string, Type *> checkDec(parseTree *node, Type *type){
     std::pair<std::string, Type *> field;
 
-    if(node->kids_num == 1){ // 右边没有赋值操作
-        //我希望checkVarDec能够返回一个<string, type *> pair
-        field = checkVarDec(node->kids[0], type);
-    }
-    else{ // 右边有赋值操作, 目前只需检查右边表达式是否和type匹配
-
+    //我希望checkVarDec能够返回一个<string, type *> pair
+    field = checkVarDec(node->kids[0], type);
+    if(node->kids_num > 1){ // 右边有赋值操作,目前只需检查右边表达式是否和type匹配
+        //如果不匹配，报个错就完事了
+        checkExp(node->kids[2], type);
     }
     return field;
 }

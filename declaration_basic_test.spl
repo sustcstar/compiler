@@ -1,10 +1,15 @@
-int d;
 
 int main(){
-    int a,b,c;
+    int a = 1;
+    float b = 123.456;
+    char c = 'k';
+    char d = c;
+    int e = b;
 }
 
 int function1(){
-    int a;
+    int a = 123.456;
+    float b = 'k';
+    char c = 1;
 }
 
