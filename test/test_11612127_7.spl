@@ -1,0 +1,12 @@
+int foo(float a){
+
+}
+
+int foo2(int b){
+
+}
+
+int main(){
+    foo(5);
+    foo2(5.6); 
+}

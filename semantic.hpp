@@ -73,7 +73,7 @@ class Structure: public Type{
         // std::cout <<"this: "<< typeid(*this).name() << std::endl;
         // std::cout <<"other: "<< typeid(other).name() << std::endl;      
         return (typeid(*this)==typeid(other) && \
-                this->name == dynamic_cast<const Array &>(other).name);
+                this->name == dynamic_cast<const Structure &>(other).name);
     }
 
     bool operator!=(const Type &other) const { 
@@ -96,7 +96,7 @@ class Function: public Type{
         // std::cout <<"this: "<< typeid(*this).name() << std::endl;
         // std::cout <<"other: "<< typeid(other).name() << std::endl;
         return (typeid(*this)==typeid(other) && \
-                this->name == dynamic_cast<const Array &>(other).name);
+                this->name == dynamic_cast<const Function &>(other).name);
     }
 
     bool operator!=(const Type &other) const { 

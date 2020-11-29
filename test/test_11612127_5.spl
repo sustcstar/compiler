@@ -1,0 +1,13 @@
+int foo_int(){
+    return 1;
+}
+
+float foo_float(int c){
+    return 1.5;
+}
+
+int main(){
+    float b;
+    b = foo_float(foo_int());
+}
+

@@ -1,0 +1,9 @@
+int main(){
+    int a;
+    float b;
+
+    a = b + 5;
+    b = a + 5;
+    a = (a > 6);
+    b = (a > 7) + 6;
+}

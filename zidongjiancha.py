@@ -1,7 +1,7 @@
 import pathlib
 import subprocess
 
-DATA = pathlib.Path('./test2/')
+DATA = pathlib.Path('./test/')
 
 def jsonchecker_output(json_file):
     out = subprocess.check_output(['./bin/splc', json_file])
@@ -20,15 +20,15 @@ def check_jsonchecker_error():
         print(out)
         print("-" * 100)
         # 把相应的文件读进来并且打印出来
-        casefile_string = str(casefile)
-        answerfile = casefile_string[:len(casefile_string)-3]
-        answerfile += "out"
-        print(answerfile + ": ")
-        file = open(answerfile, "r")
-        alllines = file.readlines()
-        for aline in alllines:
-            print(aline, end = "")
-        file.close()
-        print("=" * 100)
+        # casefile_string = str(casefile)
+        # answerfile = casefile_string[:len(casefile_string)-3]
+        # answerfile += "out"
+        # print(answerfile + ": ")
+        # file = open(answerfile, "rw")
+        # alllines = file.readlines()
+        # for aline in alllines:
+        #     print(aline, end = "")
+        # file.close()
+        # print("=" * 100)
 
 check_jsonchecker_error()

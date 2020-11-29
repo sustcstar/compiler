@@ -75,6 +75,8 @@
 
 //问题11.4：加上void?
 
+//想法11.45：整数应该能够直接传给浮点数
+
 //----------下列问题涉及到multiple-scope----------
 
 //问题11.5：检查所有compst, 加上enter和out
@@ -431,6 +433,19 @@ bool isExpLvalue(parseTree *node){
     }
 }
 
+//finished
+bool canExpand(Type *type1, Type *type2){
+    if((type1->type_category != Type::INT && type1->type_category != Type::FLOAT) \
+    || (type2->type_category != Type::INT && type2->type_category != Type::FLOAT)){
+        return false;
+    }
+    else{
+        if(type1->type_category == Type::FLOAT){
+            return true;
+        }
+    }
+}
+
 //finished 目前只管int和float
 Type *expandType(Type *type1, Type *type2, int lineno, int expand_type){
     if((type1->type_category != Type::INT && type1->type_category != Type::FLOAT) \
@@ -489,7 +504,12 @@ bool isArgsMatch(Type *tmp, std::vector<Type *> tmpargs){
                 return false;
             }
             if(*(function_args.at(i).second) != *(tmpargs.at(i))){
-                return false;
+                if(canExpand((function_args.at(i).second), (tmpargs.at(i)))){
+                    return true;
+                }
+                else{
+                    return false;
+                }
             }
         }
         return true;
@@ -582,8 +602,13 @@ Type *checkExp(parseTree *node){
                         Type *type2 = checkExp(node->kids[2]);
                         if(type1 != NULL && type2 != NULL){
                             if(*type1 != *type2){
-                                reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
-                                //TODO：这里可以return左边？
+                                if(canExpand(type1, type2)){
+                                    return type1;
+                                }
+                                else{
+                                    reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
+                                    //TODO：这里可以return左边？
+                                }
                             }
                         }
                         else{
@@ -1009,6 +1034,9 @@ void checkStmt(parseTree *node, Type *returnType){
         Type *tmp = checkExp(node->kids[1]);
         //TODO: 这里可能会有问题
         debug_log("When return, the tmp = 0x%px\n", tmp);
+        if(returnType == NULL){
+            debug_log("return_type == NULL\n");
+        }
         if(tmp == NULL || *tmp != *returnType){
             reportError(out, T8_FUNC_RETURN_UNMATCH_DECLARED, node->lineno);
         }
