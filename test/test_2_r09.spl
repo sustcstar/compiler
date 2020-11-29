@@ -1,3 +1,4 @@
+//和o01一起
 int compare(int x, int y)
 {
   if (x > y) {return 1;}

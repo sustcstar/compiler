@@ -20,7 +20,7 @@ class Type{
     // typeid 的操作对象既可以是表达式，也可以是数据类型，下面是它的两种使用方法：
     // typeid( dataType )
     // typeid( expression )
-    bool operator == (const Type &other){ //定义这种类型的"=="关系运算符以及"!="关系运算符
+    virtual bool operator == (const Type &other) const { //定义这种类型的"=="关系运算符以及"!="关系运算符
         if(type_category != INT && type_category != FLOAT && type_category != CHAR){
             std::cout<<"Oppppps, A BIG UNEXPECTED BEHAVIOR!"<<std::endl;
         }
@@ -33,7 +33,7 @@ class Type{
     // 可以在基类中将被重写的成员函数设置为虚函数，其含义是：当通过基类的指针或者引用调用该成员函数时，将根据指针指向的
     // 对象类型确定调用的函数，而非指针的类型。
     // 如果没有virtual，则派生类型的同名方法无法被重写。
-    virtual bool operator!=(const Type &other){ 
+    virtual bool operator!=(const Type &other) const { 
         return !(*this == other);
     }
 };
@@ -84,11 +84,11 @@ class Structure: public Type{
 class Function: public Type{
     public:
     Type *return_type;
-    std::map<std::string, Type *> fieldList;
+    std::vector<std::pair<std::string, Type *>> args;
 
-    Function(std::string name, Type *return_type, std::map<std::string, Type *> fieldList):Type(name, 0, FUNCTION){
+    Function(std::string name, Type *return_type, std::vector<std::pair<std::string, Type *>> args):Type(name, 0, FUNCTION){
         this->return_type = return_type;
-        this->fieldList = fieldList;
+        this->args = args;
     }
 
     //暂时默认函数名相同，则两个函数相等
@@ -104,9 +104,10 @@ class Function: public Type{
     }
 };
 
-void checkCompSt(parseTree *node, Function *funDec);
+void checkCompSt(parseTree *node, Type *returnType);
 void semanticCheck(parseTree *root);
 Type *checkSpecifier(parseTree *node);
+Type *checkExp(parseTree *node);
 
 // //两个Type相等
 // bool typeEqual(Type *A, Type *B){ //定义这种类型的"=="关系运算符以及"!="关系运算符

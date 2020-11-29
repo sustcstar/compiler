@@ -1,3 +1,5 @@
+//修复1：补充indexing
+//修复2：补充indexing-non-array
 struct Person
 {
   int name;
@@ -15,4 +17,5 @@ int test_2_r10()
     i = i + 1;
   }
   return tom.name[i-1];
+  //return tom.name;
 }

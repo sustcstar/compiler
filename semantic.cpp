@@ -69,6 +69,9 @@
 
 //问题10：if...else...if这个需要确认
 
+//问题11：关于检测return type的地方
+//目前做法：就在return的地方检测，不移动到上层
+
 //注意1：所有有迟疑的地方都用TODO标注了
 
 FILE *out;
@@ -313,7 +316,7 @@ Type *expandType(Type *type1, Type *type2, int lineno, int return_type_category)
             return type1;
         }
         if(type2->type_category == return_type_category){
-            return type1;
+            return type2;
         }
     }
 }
@@ -327,6 +330,38 @@ Type *getMember(Type *structure, std::string memberid){
     }
     else{                //3. 这个memberid不存在
         return NULL;
+    }
+}
+
+//finished Args: Exp COMMA Args | Exp 每个arg是一个exp
+std::vector<Type *> checkArgs(parseTree *node){
+    std::vector<Type *> args;
+    Type *expType = checkExp(node->kids[0]);
+    if(node->kids_num > 1){
+        args = checkArgs(node->kids[2]);
+    }
+    args.insert(args.begin(), expType);
+    return args;
+}
+
+//finished
+bool isArgsMatch(Type *tmp, std::vector<Type *> tmpargs){
+    Function *function = dynamic_cast<Function *>(tmp);
+    auto function_args = function->args;
+    int count = function_args.size();
+    // debug_log("function_args.size = %d, tmpargs.size = %d\n", function_args.size(), tmpargs.size());
+    if(function_args.size() == tmpargs.size()){
+        for(int i = 0; i < count; i++){
+            // std::cout<<"function_args.at(i).second: "<<function_args.at(i).second->type_category \
+            // << " tmpargs.at(i): "<<tmpargs.at(i)->type_category<<std::endl;
+            if(*(function_args.at(i).second) != *(tmpargs.at(i))){
+                return false;
+            }
+        }
+        return true;
+    }
+    else{
+        return false;
     }
 }
 
@@ -367,6 +402,32 @@ Type *checkExp(parseTree *node){
     else if(node->kids_num == 2){
         // MINUS Exp/NOT Exp
         // TODO: 这个先不管，等下照着test样例来填充
+        if(node->kids[0]->token_name.compare("MINUS") == 0){
+            //exp可以是1. int 2. float
+            Type *tmp = checkExp(node->kids[1]);
+            if(tmp !=NULL){
+                if(tmp->type_category != Type::INT && tmp->type_category != Type::FLOAT){
+                    reportError(out, T7_UNMATCH_OPERANDS, node->lineno);
+                    return NULL;
+                }
+                else{
+                    return tmp;
+                }
+            }
+        }
+        else{
+            //exp 只能是 int
+            Type *tmp = checkExp(node->kids[1]);
+            if(tmp !=NULL){
+                if(tmp->type_category != Type::INT){
+                    reportError(out, T7_UNMATCH_OPERANDS, node->lineno);
+                    return NULL;
+                }
+                else{
+                    return tmp;
+                }
+            }
+        }
     }
     else if(node->kids_num == 3){
         // Assumption 1 char variables only occur in assignment operations or function param-
@@ -425,8 +486,8 @@ Type *checkExp(parseTree *node){
                         Type *type1 = checkExp(node->kids[0]);
                         Type *type2 = checkExp(node->kids[2]);
                         if(type1 != NULL && type2 != NULL){
-                            //返回值可以是int,float,NULL
-                            return expandType(type1, type2, node->lineno, Type::INT);
+                            //这里的返回值必须是INT
+                            return new Type("", current_scope_level, Type::INT);
                         }
                         else{
                             return NULL;
@@ -438,6 +499,8 @@ Type *checkExp(parseTree *node){
                         Type *type2 = checkExp(node->kids[2]);
                         if(type1 != NULL && type2 != NULL){
                             //返回值可以是int,float,NULL
+                            debug_log("Line %d: type1->category = %d type2->category = %d\n", \
+                            node->lineno, type1->type_category, type2->type_category);
                             return expandType(type1, type2, node->lineno, Type::FLOAT);
                         }
                         else{
@@ -456,7 +519,18 @@ Type *checkExp(parseTree *node){
                 //查看ID是否已经声明
                 std::string key(node->kids[0]->attribute.str_attribute);
                 if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
-                    return stringToType(key);
+                    Type *tmp = stringToType(key);
+                    //TODO: 和下面一樣，可以考慮合成一個方法（函數）
+                    if(tmp->type_category == Type::FUNCTION){
+                        //1. 是函数，检查Args是否匹配，随后返回该函数的返回值
+                        //检查Args是否匹配
+                        return dynamic_cast<Function *>(tmp)->return_type;
+                    }
+                    else{
+                        //2. 不是函数，报错
+                        reportError(out, T11_INVOKE_NON_FUNC, node->lineno);
+                        return NULL;
+                    }
                 }
                 else{ //若没有，报错，返回NULL
                     reportError(out, T2_FUNC_USED_NO_DEF, node->lineno);
@@ -493,10 +567,27 @@ Type *checkExp(parseTree *node){
         if(node->kids[0]->token_name.compare("ID") == 0){
             //查看ID是否已经声明
             std::string key(node->kids[0]->attribute.str_attribute);
+            debug_log("When invoking the function %s, the symbol_table is \n", key.c_str());
+            debug_print_symbol_map();
             if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
-                //还需要检查Args里的各类东西1.是否定义 2.类型是否match
-                //TODO: 关于这个，看看有没有测试用例吧
-                return stringToType(key);
+                //TODO：还需要检查Args里的各类东西1.是否定义 2.类型是否match
+                //TODO：关于这个，看看有没有自带的测试用例吧，若没有，可以我们来搞
+                //若已经声明，检查这个ID是不是函数
+                Type *tmp = stringToType(key);
+                if(tmp->type_category == Type::FUNCTION){
+                    //1. 是函数，检查Args是否匹配，随后返回该函数的返回值
+                    //TODO:检查args, 即便args不匹配，我们也得把返回值返回回去
+                    std::vector<Type *> tmpargs = checkArgs(node->kids[2]);
+                    if(!isArgsMatch(tmp, tmpargs)){
+                        reportError(out, T9_FUNC_ARGS_UNMATCH_DECLARED, node->lineno);
+                    } 
+                    return dynamic_cast<Function *>(tmp)->return_type;
+                }
+                else{
+                    //2. 不是函数，报错
+                    reportError(out, T11_INVOKE_NON_FUNC, node->lineno);
+                    return NULL;
+                }
             }
             else{ //若没有，报错，返回NULL
                 reportError(out, T2_FUNC_USED_NO_DEF, node->lineno);
@@ -504,7 +595,29 @@ Type *checkExp(parseTree *node){
             }
         } 
         else{
-            
+            // Exp LB Exp RB
+            //先检查exp 
+            //1后，检查第二个exp ，返回base 
+            Type *tmpexp1 = checkExp(node->kids[0]);
+            if(tmpexp1->type_category == Type::ARRAY){
+                // 1. exp是数组
+                Type *tmpexp2 = checkExp(node->kids[2]);
+                debug_log("line %d: tmpexp2->type_category = %d\n", node->lineno, tmpexp2->type_category);
+                if(tmpexp2->type_category == Type::INT){
+                    // 1-1.第二个Exp是整数, 返回base
+                    return dynamic_cast<Array *>(tmpexp1)->base;
+                }
+                else{
+                    // 1-2.第二个exp不是整数，报错，返回NULL TODO：也可能不用返回NULL
+                    reportError(out, T12_INDEX_NOT_INTEGER, node->lineno);
+                    return NULL;
+                }
+            }
+            else{
+                // 2. exp不是数组，报错，返回NULL
+                reportError(out, T10_INDEXING_ON_NON_ARRAY, node->lineno);
+                return NULL;
+            }
         }
     }
     else{
@@ -652,7 +765,7 @@ std::vector<std::pair<std::string, Type *>> checkExtDecList(parseTree *node, Typ
     return variableList;
 }
 
-//finished, 这个函数的目的就是返回一个pair
+//finished 这个函数的目的就是返回一个pair
 std::pair<std::string, Type *> checkParamDec(parseTree *node){
     Type *type;
 
@@ -661,20 +774,30 @@ std::pair<std::string, Type *> checkParamDec(parseTree *node){
 }
 
 //finished
-std::map<std::string, Type *> checkVarList(parseTree *node){
-    std::map<std::string, Type *> paramList;
+bool paramNameExist(std::vector<std::pair<std::string, Type *>> paramList,std::string id){
+    for (auto iter = paramList.begin(); iter != paramList.end(); iter++){
+        if(iter->first.compare(id) == 0){
+            return true;
+        }
+    }
+    return false;
+}
+
+//finished TODO1
+std::vector<std::pair<std::string, Type *>> checkVarList(parseTree *node){
+    std::vector<std::pair<std::string, Type *>> paramList;
     // //我希望checkParamDec能够返回一个<string, type *> pair
     auto param = checkParamDec(node->kids[0]);
     if(node->kids_num > 1){ //checkVarList
         auto paramSubList = checkVarList(node->kids[2]);
         paramList = paramSubList;
     }
-    if(key_in_map(paramList, param.first)){ //形参的名字重复啦！
+    if(paramNameExist(paramList, param.first)){ //形参的名字重复啦！
         reportError(out, T3_VAR_REDEF, node->lineno);
         paramList.clear();
     }
     else{
-        paramList.insert(param); //形参名字不重复，插入参数列表
+        paramList.insert(paramList.begin(), param); //形参名字不重复，插入参数列表
     }
     return paramList;
 }
@@ -693,7 +816,7 @@ std::pair<std::string, Type *> checkFunDec(parseTree *node, Type *type){
     }
     //2. 检查是否有形参
     if(node->kids_num == 3){ //无形参
-        std::map<std::string, Type *> paramList;
+        std::vector<std::pair<std::string, Type *>> paramList;
         function = new Function(id, type, paramList);
     }
     else if(node->kids_num == 4){ //有形参    //3. 检查形参互相之间是否有重复
@@ -711,10 +834,10 @@ std::pair<std::string, Type *> checkFunDec(parseTree *node, Type *type){
 }
 
 //  和exp一样，是最复杂的部分，结合test一起来做吧
-void checkStmt(parseTree *node, Function *funDec){
+void checkStmt(parseTree *node, Type *returnType){
     if(node->kids_num == 1){
         // CompSt
-        checkCompSt(node->kids[0], funDec);
+        checkCompSt(node->kids[0], returnType);
     }
     else if(node->kids_num == 2){
         // Exp SEMI
@@ -722,36 +845,41 @@ void checkStmt(parseTree *node, Function *funDec){
     }
     else if(node->kids_num == 3){
         // RETURN Exp SEMI
+        Type *tmp = checkExp(node->kids[1]);
+        //TODO: 这里可能会有问题
+        if(tmp == NULL || *tmp != *returnType){
+            reportError(out, T8_FUNC_RETURN_UNMATCH_DECLARED, node->lineno);
+        }
     }
     else if(node->kids_num == 5){
         if(node->kids[0]->token_name.compare("IF") == 0){
             // IF LP Exp RP Stmt
             checkExp(node->kids[2]);
-            checkStmt(node->kids[4], funDec);
+            checkStmt(node->kids[4], returnType);
         }
         else{
             // WHILE LP Exp RP Stmt
             checkExp(node->kids[2]);
-            checkStmt(node->kids[4], funDec);
+            checkStmt(node->kids[4], returnType);
         }
     }
     else{
         // IF LP Exp RP Stmt ELSE Stmt
         checkExp(node->kids[2]);
-        checkStmt(node->kids[4], funDec);
-        checkStmt(node->kids[6], funDec);
+        checkStmt(node->kids[4], returnType);
+        checkStmt(node->kids[6], returnType);
     }
 }
 
 //finished  funDec中包含了你这个函数的参数列表和返回值
-void checkStmtList(parseTree *node, Function *funDec){
+void checkStmtList(parseTree *node, Type *returnType){
     if(node->kids_num == 1){
         //最后一句，需要有返回值？ 不需要！
-        checkStmt(node->kids[0], funDec);
+        checkStmt(node->kids[0], returnType);
     }
     else if(node->kids_num == 2){
-        checkStmt(node->kids[0], funDec);
-        checkStmtList(node->kids[1], funDec);
+        checkStmt(node->kids[0], returnType);
+        checkStmtList(node->kids[1], returnType);
     }
     else{
         // StmtList = %empty do nothing?
@@ -759,18 +887,18 @@ void checkStmtList(parseTree *node, Function *funDec){
 }
 
 //finished
-void checkCompSt(parseTree *node, Function *funDec){
+void checkCompSt(parseTree *node, Type *returnType){
     debug_log("line %d: kids_num = %d\n", node->lineno, node->kids_num);
     debug_log("line %d: node->name = %s\n", node->lineno, node->token_name.c_str());
     if(node->kids_num == 3){    //直接StmtList
-        checkStmtList(node->kids[1], funDec);
+        checkStmtList(node->kids[1], returnType);
     }
     else{   //先DefList再StmtList 
         auto variableList = checkDefList(node->kids[1]); //假设已经在下一层检查过
         // putAMapIntoSymbolTable(variableList, node); //把它们插入symbol_table
         //已经在下一层放进去过，这个等到扩张scope的时候再说
         debug_print_symbol_map();
-        checkStmtList(node->kids[2], funDec);
+        checkStmtList(node->kids[2], returnType);
     }
 }
 
@@ -802,13 +930,19 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
         debug_log("In checkExtDef, before checkFunDec.\n");
         auto function = checkFunDec(node->kids[1], type);
         debug_log("In checkExtDef, after checkFunDec.\n");
-        if(function.second != NULL){ //在下层已经检查过，知道没问题 TODO: 我认为即使，函数定义有错，compst也得检查一下
-            symbol_table.insert(function);
-            Function *funDec = (Function *)function.second;
-            debug_log("In checkExtDef, before checkCompSt.\n");
-            checkCompSt(node->kids[2], funDec);
-            debug_log("In checkExtDef, after checkCompSt.\n");
-        }
+        symbol_table.insert(function);
+        //即便知道这个函数定义有问题，compst内的东西还是需要检查，如果function.second == NULL，说明函数定义有问题
+        //TODO: function.second 可能会为NULL
+        Function *funDec = (Function *)function.second;
+        debug_log("In checkExtDef, before checkCompSt.\n");
+        checkCompSt(node->kids[2], type);
+        // Type *return_type = checkCompSt(node->kids[2], funDec);
+        debug_log("In checkExtDef, after checkCompSt.\n");\
+        // //type是函数声明的返回值类型
+        // if(*return_type != *type){
+        //     //如果返回值类型不匹配，报错
+        //     reportError(out, T8_FUNC_RETURN_UNMATCH_DECLARED, node->lineno);
+        // }
     }
 }
 

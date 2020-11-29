@@ -1,4 +1,4 @@
-//根据这一个，我们可以认为形参也放进symbol_table，不过先放着，最后再来搞
+//根据这一个，我们可以认为形参也放进symbol_table，不过先放着，最后再来搞, 和o01一起
 int compare1(int x, int y)
 {
   if (x > y) {return 1;}
