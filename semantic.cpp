@@ -452,7 +452,13 @@ Type *checkExp(parseTree *node){
                         if(type1 != NULL && type2 != NULL){
                             if(*type1 != *type2){
                                 reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
+                                //TODO：这里可以return左边？
                             }
+                        }
+                        else{
+                            //左右两边有一个有问题，也可以报个错
+                            reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
+                            //TODO：这里可以return左边？
                         }
                     }
                     else{ //ASSIGN左边不是左值
