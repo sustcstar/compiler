@@ -2,6 +2,7 @@
 #include"reportError.hpp"
 #include <stdarg.h>
 #include <map>
+#include <stack>
 
 #define SE_DEBUG 1
 
@@ -72,12 +73,30 @@
 //问题11：关于检测return type的地方
 //目前做法：就在return的地方检测，不移动到上层
 
+//问题11：检查所有compst, 加上enter和out
+
+//问题12：检查一遍所有的symbol_table以及相关函数调用之地，保证逻辑正确
+
+//问题13：funDec只需保证里面形参没有重复，和其它地方重复没关系，需检查之前的代码是否直接插入symbol_table中。
+
+//问题14：目前redefined的变量只存在于同一scope中，可能会有些地方需要大修
+
+// 大工程：revoke Assumption 6, thus variables in dierent scopes can share the same identier,
+// and variables defined in the outer scope will be shadowed by the inner variables with
+// the same identifier.
+// 解决：使用一个stack + symboltable
+// 1. 每次进入一个compst, current_scope_level+1, 复制一个新的symboltable，push入stack (修改地，所有的compst)
+// 2. 如果1中前面有funcDec定义，则把参数列表也放进stack.top (修改地，所有的compst)
+// 3. 每次放进去前，看看是否已经有同名变量，若有，则覆盖它，若没有，直接插入(compst里的def，以及外部的def)
+// 4. 从compst出来时,current_scope_level-1, stack pop 一个table (修改地，所有的compst)
+// note:目前所有涉及到symbol_table的地方很可能都要修改
+
 //注意1：所有有迟疑的地方都用TODO标注了
 
 FILE *out;
 int current_scope_level;
-std::map<std::string, Type *> symbol_table; //用来存变量的，检测变量名是否重合
 std::map<std::string, Type *> structure_table; //用来存用户定义类型的，检测是否重复定义了类型
+std::stack<std::map<std::string, Type *>> symbol_stack;
 
 //finished
 void debug_log(const char *str, ...){
@@ -93,7 +112,8 @@ void debug_log(const char *str, ...){
 void debug_print_symbol_map(){
 #if  SE_DEBUG==1 
     int count = 0;
-
+    auto symbol_table_pointer = accessSymbolTable();
+    auto symbol_table = *symbol_table_pointer;
     for (auto iter=symbol_table.begin(); iter!=symbol_table.end(); iter++){
         count++;
         debug_log("symbol_table: key%d: %s\n", count, iter->first.c_str());
@@ -116,6 +136,8 @@ void debug_print_structure_map(){
 //finished, 有就返回Type，没有就返回NULL
 Type *stringToType(std::string name){
     // 查询符号表
+    auto symbol_table_pointer = accessSymbolTable();
+    auto symbol_table = *symbol_table_pointer;
     auto iter = symbol_table.find(name);
     if(iter != symbol_table.end()){ //2. 这个id已经存在
         return iter->second;
@@ -127,6 +149,8 @@ Type *stringToType(std::string name){
 
 //finished
 void putAMapIntoSymbolTable(std::map<std::string, Type *> themap, parseTree *node){
+    auto symbol_table_pointer = accessSymbolTable();
+    auto symbol_table = *symbol_table_pointer;
     for (auto themap_iter=themap.begin(); themap_iter!=themap.end(); themap_iter++){
         auto symbol_iter = symbol_table.find(themap_iter->first);
         if(symbol_iter != symbol_table.end()){  //symbol_table中已有这个key
@@ -139,7 +163,7 @@ void putAMapIntoSymbolTable(std::map<std::string, Type *> themap, parseTree *nod
     }
 }
 
-//finished
+//finished-2
 bool key_in_map(std::map<std::string, Type *> themap, std::string key){
     bool flag;
 
@@ -153,10 +177,67 @@ bool key_in_map(std::map<std::string, Type *> themap, std::string key){
     return flag;
 }
 
+// 大工程：revoke Assumption 6, thus variables in dierent scopes can share the same identier,
+// and variables defined in the outer scope will be shadowed by the inner variables with
+// the same identifier.
+// 解决：使用一个stack + symboltable
+// 1. 每次进入一个compst, current_scope_level+1, 复制一个新的symboltable，push入stack (修改地，所有的compst)
+// 2. 如果1中前面有funcDec定义，则把参数列表也放进stack.top (修改地，所有的compst)
+// 3. 每次放进去前，看看是否已经有同名变量，若有，则覆盖它，若没有，直接插入(compst里的def，以及外部的def)
+// 4. 从compst出来时,current_scope_level-1, stack pop 一个table (修改地，所有的compst)
+// note:目前所有涉及到symbol_table的地方很可能都要修改
+
+//finished-2
+std::map<std::string, Type *> *accessSymbolTable(){
+    std::map<std::string, Type *> *table_pointer = &(symbol_stack.top());
+    return table_pointer;
+}
+
+//finished-2
+void outofCompst(Function *funDec){
+    //1. 减少scope_level
+    current_scope_level--;
+    //2. stack pop 一个table
+    symbol_stack.pop();
+}
+
+//finished
+void initGlobalScope(){
+    current_scope_level = 0;
+    std::map<std::string, Type *> symbol_table;
+    symbol_stack.push(symbol_table);
+}
+
+//finished-2
+void enterCompst(Function *funDec){
+    //1. 提高scope_level
+    current_scope_level++;
+    //2. 复制顶端符号表
+    auto symbol_table = symbol_stack.top();
+    //3. 把funDec里的参数表放进符号表
+    if(funDec != NULL){
+        auto fun_args = funDec->args;
+        for(auto iter = fun_args.begin(); iter != fun_args.end(); iter++){
+            if(key_in_map(symbol_table, iter->first)){
+                //3-1. 符号表中已经有这个参数，覆盖它
+                symbol_table[iter->first] = iter->second;
+            }
+            else{
+                //3-2. 符号表中没有这个参数，插入它
+                symbol_table.insert(*iter);
+            }
+        }
+    }
+    //4. 把新的符号表放进stack里
+    symbol_stack.push(symbol_table);
+}
+
 //finished
 bool variableDefined(std::string name){
     bool flag;
     // 查询符号表
+    auto symbol_table_pointer = accessSymbolTable();
+    auto symbol_table = *symbol_table_pointer;
     auto iter = symbol_table.find(name);
     if(iter != symbol_table.end()){ //2. 这个id已经存在
         flag = true;
@@ -384,6 +465,8 @@ Type *checkExp(parseTree *node){
         debug_log("exp->kids[0]->token_name = %s\n", node->kids[0]->token_name.c_str());
         if(node->kids[0]->token_name.compare("ID") == 0){
             //根据ID获得Type, 再进行比较
+            auto symbol_table_pointer = accessSymbolTable();
+            auto symbol_table = *symbol_table_pointer;
             std::string id(node->kids[0]->attribute.str_attribute);
             auto pair = symbol_table.find(id);
             if(pair != symbol_table.end()){
@@ -529,6 +612,8 @@ Type *checkExp(parseTree *node){
                 //查看ID是否已经声明 TODO:记得参考下面那个差不多的函数
                 //1. 看有没有ID 2. 看是不是函数 3.看参数是否匹配
                 std::string key(node->kids[0]->attribute.str_attribute);
+                auto symbol_table_pointer = accessSymbolTable();
+                auto symbol_table = *symbol_table_pointer;
                 if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
                     Type *tmp = stringToType(key);
                     //TODO: 和下面一樣，可以考慮合成一個方法（函數）
@@ -584,6 +669,8 @@ Type *checkExp(parseTree *node){
             std::string key(node->kids[0]->attribute.str_attribute);
             debug_log("When invoking the function %s, the symbol_table is \n", key.c_str());
             debug_print_symbol_map();
+            auto symbol_table_pointer = accessSymbolTable();
+            auto symbol_table = *symbol_table_pointer;
             if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
                 //TODO：还需要检查Args里的各类东西1.是否定义 2.类型是否match
                 //TODO：关于这个，看看有没有自带的测试用例吧，若没有，可以我们来搞
@@ -936,6 +1023,8 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
             }
             else{
                 //2. 该变量名未被使用，插入符号表
+                auto symbol_table_pointer = accessSymbolTable();
+                auto symbol_table = *symbol_table_pointer;
                 symbol_table.insert(variable);
             }
         }
@@ -947,6 +1036,8 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
         debug_log("In checkExtDef, before checkFunDec.\n");
         auto function = checkFunDec(node->kids[1], type);
         debug_log("In checkExtDef, after checkFunDec.\n");
+        auto symbol_table_pointer = accessSymbolTable();
+        auto symbol_table = *symbol_table_pointer;
         symbol_table.insert(function);
         //即便知道这个函数定义有问题，compst内的东西还是需要检查，如果function.second == NULL，说明函数定义有问题
         //TODO: function.second 可能会为NULL
@@ -976,7 +1067,7 @@ void checkExtDefList(parseTree *node){
 //finished
 void semanticCheck(parseTree *root){
     out = stdout;
-    current_scope_level = 0;
+    initGlobalScope();
     if(root->kids_num > 0){
         checkExtDefList(root->kids[0]);
     }
