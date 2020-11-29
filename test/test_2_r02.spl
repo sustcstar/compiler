@@ -1,6 +1,6 @@
 int inc(int n)
 {
-  return n + 1;
+  return n + 1; //和o1一起改
 }
 int test_2_r02()
 {

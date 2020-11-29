@@ -1,2 +1,3 @@
 1. 在function调用里加上structure
 2. 看看structure里定义同名变量会怎样
+3. 不存在的member

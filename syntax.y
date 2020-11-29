@@ -199,7 +199,7 @@ int main(int argc, char **argv){
         //if error == 1, do something
     }
     else{
-        preOrderPrint(root, 0);
+        // preOrderPrint(root, 0);
 
         // semantic analysis 前面两个没错，才会做语法分析
         semanticCheck(root);

@@ -109,7 +109,7 @@ void semanticCheck(parseTree *root);
 Type *checkSpecifier(parseTree *node);
 Type *checkExp(parseTree *node);
 std::map<std::string, Type *> accessSymbolTable();
-void changeSymbolTable(std::string key, Type *type);
+bool changeSymbolTable(std::string key, Type *type, int lineno);
 Type *keyToType(std::string key);
 
 // //两个Type相等
