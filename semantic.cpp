@@ -354,6 +354,10 @@ bool isArgsMatch(Type *tmp, std::vector<Type *> tmpargs){
         for(int i = 0; i < count; i++){
             // std::cout<<"function_args.at(i).second: "<<function_args.at(i).second->type_category \
             // << " tmpargs.at(i): "<<tmpargs.at(i)->type_category<<std::endl;
+            if(tmpargs.at(i) == NULL){
+                //使用的实参有一部分没定义
+                return false;
+            }
             if(*(function_args.at(i).second) != *(tmpargs.at(i))){
                 return false;
             }
@@ -516,14 +520,19 @@ Type *checkExp(parseTree *node){
                 return checkExp(node->kids[1]);
             } 
             else if(node->kids[0]->token_name.compare("ID") == 0){
-                //查看ID是否已经声明
+                //查看ID是否已经声明 TODO:记得参考下面那个差不多的函数
+                //1. 看有没有ID 2. 看是不是函数 3.看参数是否匹配
                 std::string key(node->kids[0]->attribute.str_attribute);
                 if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
                     Type *tmp = stringToType(key);
                     //TODO: 和下面一樣，可以考慮合成一個方法（函數）
                     if(tmp->type_category == Type::FUNCTION){
-                        //1. 是函数，检查Args是否匹配，随后返回该函数的返回值
+                        // 是函数，检查Args是否匹配，随后返回该函数的返回值
                         //检查Args是否匹配
+                        std::vector<Type *> tmpargs;
+                        if(!isArgsMatch(tmp, tmpargs)){
+                            reportError(out, T9_FUNC_ARGS_UNMATCH_DECLARED, node->lineno);
+                        } 
                         return dynamic_cast<Function *>(tmp)->return_type;
                     }
                     else{
@@ -577,7 +586,9 @@ Type *checkExp(parseTree *node){
                 if(tmp->type_category == Type::FUNCTION){
                     //1. 是函数，检查Args是否匹配，随后返回该函数的返回值
                     //TODO:检查args, 即便args不匹配，我们也得把返回值返回回去
+                    debug_log("Before checkArgs\n");
                     std::vector<Type *> tmpargs = checkArgs(node->kids[2]);
+                    debug_log("After checkArgs, tmpargs.size = %d\n", tmpargs.size());
                     if(!isArgsMatch(tmp, tmpargs)){
                         reportError(out, T9_FUNC_ARGS_UNMATCH_DECLARED, node->lineno);
                     } 
