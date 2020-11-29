@@ -13,6 +13,12 @@
 //假设6：没有void返回值的函数
 //假设7：变量名和函数名不可重复
 //假设8：暂时默认函数名相同，则两个函数相等
+//假设9：函数定义时必须带着compst
+//假设10：函数可以没有返回值（哪怕定义的时候要求了返回值），但是一旦使用return，必须与定义匹配
+// Assumption 1 char variables only occur in assignment operations or function param-
+// eters/arguments
+// Assumption 2 only int variables can do boolean operations
+// Assumption 3 only int and float variables can do arithmetic operations
 
 //实现1：实现基本类型（无赋值）的插入符号表以及检查是否重复（名称）
 //实现2：实现基本类型多维数组（无赋值）的插入符号表以及检查是否重复（名称）
@@ -22,7 +28,9 @@
 //实现5：实现函数定义，并检查函数名重复性，以及参数名重复性，参数可以是结构体
 //实现6：实现在一个compst内的定义变量(暂时没有scope)
 //实现7：在表达式仅为基本类型时（不包括ID），可以用于初始化变量。
-//预备8：实现exp框架，之后再修复(实现这行可以去掉)
+//预备8：完成compst框架，包括while/if/else等关键字
+//预备9: 照着测试样例填补exp框架
+//预备10：一个函数的参数列表在compst中应该算作已经定义
 
 //改进1：可以把插入表的地方放在一个高层，统一起来，下层的函数都是返回变量pair,\
         下层都用vector返回pair,上层则用map看搜集，看是否有重复，看情况报错 --已经完成
@@ -46,6 +54,22 @@
 
 //问题4：varDec在被定义的时候，即便右边exp检查不对劲，仍会返回该变量，该变量仍算作被定义
 //解决：就这样吧
+
+//问题5：一行连续两个赋值（=）怎么报错？
+
+//问题6：如果不匹配，报个错, 可以返回NULL也可以返回最左边的exp，看情况挑选
+
+//问题7：在初始化赋值中，可以使用checkexp把exp的类型返回上来，也可以在checkexp中做所有事情
+//目前解决：在checkexp中解决所有事情
+
+//问题8：没有过一行定义一行，应该改为每扫描一行，那一行就定义好了。
+
+//问题9：在末尾的注释会卡住程序
+//想法（已采纳）：测试用例中没有注释所以不管。
+
+//问题10：if...else...if这个需要确认
+
+//注意1：所有有迟疑的地方都用TODO标注了
 
 FILE *out;
 int current_scope_level;
@@ -86,12 +110,24 @@ void debug_print_structure_map(){
 #endif
 }
 
+//finished, 有就返回Type，没有就返回NULL
+Type *stringToType(std::string name){
+    // 查询符号表
+    auto iter = symbol_table.find(name);
+    if(iter != symbol_table.end()){ //2. 这个id已经存在
+        return iter->second;
+    }
+    else{                //3. 这个id不存在
+        return NULL;
+    }
+}
+
 //finished
 void putAMapIntoSymbolTable(std::map<std::string, Type *> themap, parseTree *node){
     for (auto themap_iter=themap.begin(); themap_iter!=themap.end(); themap_iter++){
         auto symbol_iter = symbol_table.find(themap_iter->first);
         if(symbol_iter != symbol_table.end()){  //symbol_table中已有这个key
-            std::cout<<"Ooooooops!!!, checkList return multiple defined variables!"<<std::endl;
+            // std::cout<<"Ooooooops!!!, checkList return multiple defined variables!"<<std::endl;
             reportError(out, T3_VAR_REDEF, node->lineno);
         }
         else{   //symbol_table中没有这个key，插入
@@ -226,9 +262,84 @@ Type *checkPrimitive(parseTree *node){
     return primitive;
 }
 
-//如果不匹配，报个错就完事了。type为该表达式应该匹配的类型
-void checkExp(parseTree *node, Type *type){
-    debug_log("exp->kids_num = %d\n", node->kids_num);
+//finished
+bool isExpLvalue(parseTree *node){
+    if(node->kids_num == 1){
+        // ID 是左值，没问题
+        if(node->kids[0]->token_name.compare("ID") == 0){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+    else if(node->kids_num == 3){
+        // Exp DOT ID 要求Exp也是左值
+        if(node->kids[0]->token_name.compare("Exp") == 0 && \
+            node->kids[1]->token_name.compare("DOT") == 0 && \
+            node->kids[2]->token_name.compare("ID") == 0){
+            return isExpLvalue(node->kids[0]);
+        }
+        else{
+            return false;
+        }
+    }
+    else if(node->kids_num == 4){
+        // Exp LB Exp RB 要求左边的Exp也是左值
+        if(node->kids[0]->token_name.compare("Exp") == 0 && \
+            node->kids[1]->token_name.compare("LB") == 0 && \
+            node->kids[2]->token_name.compare("Exp") == 0 && \
+            node->kids[3]->token_name.compare("RB") == 0){
+            return isExpLvalue(node->kids[0]);
+        }
+        else{
+            return false;
+        }
+    }
+    else{
+        return false;
+    }
+}
+
+//finished 目前只管int和float
+Type *expandType(Type *type1, Type *type2, int lineno, int return_type_category){
+    if((type1->type_category != Type::INT && type1->type_category != Type::FLOAT) \
+    || (type2->type_category != Type::INT && type2->type_category != Type::FLOAT)){
+        reportError(out, T7_UNMATCH_OPERANDS, lineno);
+        return NULL;
+    }
+    else{
+        if(type1->type_category == return_type_category){
+            return type1;
+        }
+        if(type2->type_category == return_type_category){
+            return type1;
+        }
+    }
+}
+
+//finished, 返回一个结构体的member，若member不存在，返回NULL
+Type *getMember(Type *structure, std::string memberid){
+    std::map<std::string, Type *> fieldList = dynamic_cast<Structure *>(structure)->fieldList;
+    auto iter = fieldList.find(memberid);
+    if(iter != fieldList.end()){ //2. 这个memberid已经存在
+        return iter->second;
+    }
+    else{                //3. 这个memberid不存在
+        return NULL;
+    }
+}
+
+//type为该表达式应该匹配的类型
+//成功，则返回exp所代表的类型
+// 1. 检验左右类型是否匹配
+// 2. 检验各类ID是否定义
+// 3. 两个不同值域的类型进行运算，结果会自动转换为值域较大的类型。\
+    char 1个字节， int,float4个字节，double 8个。
+// 4. 意思是赋值号左侧的是只能是变量，不能是表达式。
+// 5. 如果不匹配，报个错, 可以返回NULL也可以返回最左边的exp，看情况挑选
+Type *checkExp(parseTree *node){
+    debug_log("line %d: exp->kids_num = %d\n", node->lineno, node->kids_num);
     if(node->kids_num == 1){
         // ID/INT/FLOAT/CHAR
         debug_log("exp->kids[0]->token_name = %s\n", node->kids[0]->token_name.c_str());
@@ -237,48 +348,170 @@ void checkExp(parseTree *node, Type *type){
             std::string id(node->kids[0]->attribute.str_attribute);
             auto pair = symbol_table.find(id);
             if(pair != symbol_table.end()){
-                //1. ID存在, 获得Type并比较
-                if(type == pair->second){ //1-1. 两个类型相等，返回
-                    return;
-                }
-                else{ //1-2.两个类型不相等，报错
-                    reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
-                }
+                //1. ID存在, 获得variable并且返回type
+                return pair->second;
             }
             else{
-                //2. ID不存在，报错
+                //2. ID不存在，报错, 返回NULL
                 reportError(out, T1_VAR_USED_NO_DEF, node->lineno);
+                return NULL;
             }
         }
-        else{ //INT/FLOAT/CHAR, 构造一个类型，再进行Type之间的比较
-            debug_log("Before checkPrimitive\n");
+        else{ //INT/FLOAT/CHAR, 构造一个类型，再返回
+            debug_log("line %d: Before checkPrimitive\n", node->lineno);
             Type *primitive = checkPrimitive(node->kids[0]);
             debug_log("After checkPrimitive\n");
-            if(*type == *primitive){
-                debug_log("type == primitive\n");
-                return;
-            }
-            else{
-                debug_log("type != primitive\n");
-                reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
-            }
+            return primitive;
         }
     }
     else if(node->kids_num == 2){
         // MINUS Exp/NOT Exp
+        // TODO: 这个先不管，等下照着test样例来填充
     }
     else if(node->kids_num == 3){
-        // Exp ASSIGN Exp/Exp AND Exp/Exp OR Exp/Exp LT Exp
-        // Exp LE Exp/Exp GT Exp/Exp GE Exp/Exp NE Exp
-        // Exp EQ Exp/Exp PLUS Exp/Exp MINUS Exp/Exp MUL Exp
-        // Exp DIV Exp/LP Exp RP/ID LP RP/Exp DOT ID
+        // Assumption 1 char variables only occur in assignment operations or function param-
+        // eters/arguments
+        // Assumption 2 only int variables can do boolean operations
+        // Assumption 3 only int and float variables can do arithmetic operations
+        debug_log("line %d: The expression is %s %s %s\n", node->lineno, node->kids[0]->token_name.c_str(), \
+        node->kids[1]->token_name.c_str(), node->kids[2]->token_name.c_str());
+        if(node->kids[0]->token_name.compare("Exp") == 0 && \
+            node->kids[2]->token_name.compare("Exp") == 0){
+                //1. 提取左右表达式的类型
+                if(node->kids[1]->token_name.compare("ASSIGN") == 0){
+                    // Exp ASSIGN Exp
+                    debug_log("Before Exp ASSIGN Exp\n");
+                    if(isExpLvalue(node->kids[0])){ //ASSIGN左边是左值
+                        Type *type1 = checkExp(node->kids[0]);
+                        Type *type2 = checkExp(node->kids[2]);
+                        if(type1 != NULL && type2 != NULL){
+                            if(*type1 != *type2){
+                                reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
+                            }
+                        }
+                    }
+                    else{ //ASSIGN左边不是左值
+                        reportError(out, T6_RVAL_ON_ASSIGN_LEFT, node->lineno);
+                        return NULL; //TODO
+                    }
+                    debug_log("After Exp ASSIGN Exp\n");
+                }
+                else{
+                    // Exp AND Exp/Exp OR Exp/Exp LT Exp
+                    // Exp LE Exp/Exp GT Exp/Exp GE Exp/Exp NE Exp
+                    // Exp EQ Exp/Exp PLUS Exp/Exp MINUS Exp/Exp MUL Exp
+                    // Exp DIV Exp/
+                    // 把文档自己提供的假设当成真的
+                    std::string oper(node->kids[1]->token_name);
+                    if(oper.compare("AND") == 0 || oper.compare("OR") == 0){
+                        //布尔运算 左右两边都得是int
+                        Type *type1 = checkExp(node->kids[0]);
+                        Type *type2 = checkExp(node->kids[2]);
+                        if(type1 != NULL && type2 != NULL){
+                            if(type1->type_category != Type::INT \
+                            || type2->type_category != Type::INT){
+                                reportError(out, T7_UNMATCH_OPERANDS, node->lineno);
+                                return NULL;
+                            }
+                        }
+                        else{
+                            return NULL;
+                        }
+                    }
+                    else if(oper.compare("LT") == 0 || oper.compare("LE") == 0 \
+                    || oper.compare("GT") == 0 || oper.compare("GE") == 0 \
+                    || oper.compare("NE") == 0 || oper.compare("EQ") == 0){
+                        //关系运算 左右两边都得是int和float, 扩张为int
+                        Type *type1 = checkExp(node->kids[0]);
+                        Type *type2 = checkExp(node->kids[2]);
+                        if(type1 != NULL && type2 != NULL){
+                            //返回值可以是int,float,NULL
+                            return expandType(type1, type2, node->lineno, Type::INT);
+                        }
+                        else{
+                            return NULL;
+                        }
+                    }
+                    else{
+                        //算术运算 左右两边都得是int和float，扩张为float
+                        Type *type1 = checkExp(node->kids[0]);
+                        Type *type2 = checkExp(node->kids[2]);
+                        if(type1 != NULL && type2 != NULL){
+                            //返回值可以是int,float,NULL
+                            return expandType(type1, type2, node->lineno, Type::FLOAT);
+                        }
+                        else{
+                            return NULL;
+                        }
+                    }
+                }
+        }
+        else{
+            // LP Exp RP/ID LP RP/Exp DOT ID
+            // TODO: 这个先不管，等下照着test样例来填充  
+            if(node->kids[0]->token_name.compare("LP") == 0){
+                return checkExp(node->kids[1]);
+            } 
+            else if(node->kids[0]->token_name.compare("ID") == 0){
+                //查看ID是否已经声明
+                std::string key(node->kids[0]->attribute.str_attribute);
+                if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
+                    return stringToType(key);
+                }
+                else{ //若没有，报错，返回NULL
+                    reportError(out, T2_FUNC_USED_NO_DEF, node->lineno);
+                    return NULL;
+                }
+            }
+            else{
+                //1. Exp必须是已经定义且是结构体，否则就报“T13_ACCESS_MEMBER_NON_STRUCTURE”错误
+                Type *structure = checkExp(node->kids[0]);
+                if(structure && structure->type_category == Type::STRUCTURE){
+                    //2. member必须是该结构体的成员变量
+                    std::string memberid(node->kids[2]->attribute.str_attribute);
+                    Type *member = NULL;
+                    if(member = getMember(structure, memberid)){
+                        //是member, 则返回member的类型
+                        return member;
+                    }
+                    else{
+                        //不是member，则报错，返回NULL
+                        reportError(out, T14_ACCESS_NONDEF_STRUCTURE_MEMBER, node->lineno);
+                        return NULL;
+                    }
+                }
+                else{
+                    reportError(out, T13_ACCESS_MEMBER_NON_STRUCTURE, node->lineno);
+                    return NULL;
+                }
+            }
+        }
     }
     else if(node->kids_num == 4){
         // ID LP Args RP/Exp LB Exp RB
+        // TODO: 这个先不管，等下照着test样例来填充
+        if(node->kids[0]->token_name.compare("ID") == 0){
+            //查看ID是否已经声明
+            std::string key(node->kids[0]->attribute.str_attribute);
+            if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
+                //还需要检查Args里的各类东西1.是否定义 2.类型是否match
+                //TODO: 关于这个，看看有没有测试用例吧
+                return stringToType(key);
+            }
+            else{ //若没有，报错，返回NULL
+                reportError(out, T2_FUNC_USED_NO_DEF, node->lineno);
+                return NULL;
+            }
+        } 
+        else{
+            
+        }
     }
     else{
         debug_log("Oooooops! Unexpected behavior!\n");
     }
+    //其余情况都是意外情况，返回NULL
+    return NULL;
 }
 
 //finished 我希望checkDec能够返回一个<string, type *> pair
@@ -289,7 +522,12 @@ std::pair<std::string, Type *> checkDec(parseTree *node, Type *type){
     field = checkVarDec(node->kids[0], type);
     if(node->kids_num > 1){ // 右边有赋值操作,目前只需检查右边表达式是否和type匹配
         //如果不匹配，报个错就完事了
-        checkExp(node->kids[2], type);
+        Type *expType = checkExp(node->kids[2]);
+        if(expType != NULL){
+            if( *type != *expType){ //如果不匹配
+                reportError(out, T5_UNMATCH_TYPE_ASSIGN, node->lineno);
+            }
+        }
     }
     return field;
 }
@@ -314,6 +552,7 @@ std::map<std::string, Type *> checkDef(parseTree *node){
     type = checkSpecifier(node->kids[0]); //获得这个变量的类型
     //我希望checkDecList返回的是一个std::map<std::string, Type *>
     auto fields = checkDecList(node->kids[1], type);
+    putAMapIntoSymbolTable(fields, node);
     return fields;
 }
 
@@ -331,7 +570,8 @@ std::map<std::string, Type *> checkDefList(parseTree *node){ //为structure的�
     //检查两个list里定义的变量是否有重复
     for (auto iter=fields.begin(); iter!=fields.end(); iter++){
         if(key_in_map(fieldList, iter->first)){ //变量重复，报错
-            reportError(out, T3_VAR_REDEF, node->lineno);
+            // reportError(out, T3_VAR_REDEF, node->lineno);
+            //已经在下一层报错过，先不管TODO
         }
         else{ //变量不重复，插入fieldList
             fieldList.insert(*iter);
@@ -470,25 +710,71 @@ std::pair<std::string, Type *> checkFunDec(parseTree *node, Type *type){
     return make_pair(id, function);
 }
 
-void checkStmtList(parseTree *node, Function *funDec){
-
+//  和exp一样，是最复杂的部分，结合test一起来做吧
+void checkStmt(parseTree *node, Function *funDec){
+    if(node->kids_num == 1){
+        // CompSt
+        checkCompSt(node->kids[0], funDec);
+    }
+    else if(node->kids_num == 2){
+        // Exp SEMI
+        checkExp(node->kids[0]);
+    }
+    else if(node->kids_num == 3){
+        // RETURN Exp SEMI
+    }
+    else if(node->kids_num == 5){
+        if(node->kids[0]->token_name.compare("IF") == 0){
+            // IF LP Exp RP Stmt
+            checkExp(node->kids[2]);
+            checkStmt(node->kids[4], funDec);
+        }
+        else{
+            // WHILE LP Exp RP Stmt
+            checkExp(node->kids[2]);
+            checkStmt(node->kids[4], funDec);
+        }
+    }
+    else{
+        // IF LP Exp RP Stmt ELSE Stmt
+        checkExp(node->kids[2]);
+        checkStmt(node->kids[4], funDec);
+        checkStmt(node->kids[6], funDec);
+    }
 }
 
+//finished  funDec中包含了你这个函数的参数列表和返回值
+void checkStmtList(parseTree *node, Function *funDec){
+    if(node->kids_num == 1){
+        //最后一句，需要有返回值？ 不需要！
+        checkStmt(node->kids[0], funDec);
+    }
+    else if(node->kids_num == 2){
+        checkStmt(node->kids[0], funDec);
+        checkStmtList(node->kids[1], funDec);
+    }
+    else{
+        // StmtList = %empty do nothing?
+    }
+}
+
+//finished
 void checkCompSt(parseTree *node, Function *funDec){
-    debug_log("kids_num = %d\n", node->kids_num);
-    debug_log("node->name = %s\n", node->token_name.c_str());
+    debug_log("line %d: kids_num = %d\n", node->lineno, node->kids_num);
+    debug_log("line %d: node->name = %s\n", node->lineno, node->token_name.c_str());
     if(node->kids_num == 3){    //直接StmtList
         checkStmtList(node->kids[1], funDec);
     }
     else{   //先DefList再StmtList 
         auto variableList = checkDefList(node->kids[1]); //假设已经在下一层检查过
-        putAMapIntoSymbolTable(variableList, node); //把它们插入symbol_table
+        // putAMapIntoSymbolTable(variableList, node); //把它们插入symbol_table
+        //已经在下一层放进去过，这个等到扩张scope的时候再说
         debug_print_symbol_map();
         checkStmtList(node->kids[2], funDec);
     }
 }
 
-//finished
+//
 void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代表着global_scope每一行的定义
     Type *type;
 
@@ -512,10 +798,11 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
     }
     else if(node->kids[1]->token_name.compare("FunDec") == 0){
         //是一个函数定义
+        //TODO：在这里判断return Type是否match
         debug_log("In checkExtDef, before checkFunDec.\n");
         auto function = checkFunDec(node->kids[1], type);
         debug_log("In checkExtDef, after checkFunDec.\n");
-        if(function.second != NULL){ //在下层已经检查过，知道没问题
+        if(function.second != NULL){ //在下层已经检查过，知道没问题 TODO: 我认为即使，函数定义有错，compst也得检查一下
             symbol_table.insert(function);
             Function *funDec = (Function *)function.second;
             debug_log("In checkExtDef, before checkCompSt.\n");

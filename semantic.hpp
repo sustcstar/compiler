@@ -104,6 +104,7 @@ class Function: public Type{
     }
 };
 
+void checkCompSt(parseTree *node, Function *funDec);
 void semanticCheck(parseTree *root);
 Type *checkSpecifier(parseTree *node);
 
