@@ -108,7 +108,9 @@ void checkCompSt(parseTree *node, Type *returnType);
 void semanticCheck(parseTree *root);
 Type *checkSpecifier(parseTree *node);
 Type *checkExp(parseTree *node);
-std::map<std::string, Type *> *accessSymbolTable();
+std::map<std::string, Type *> accessSymbolTable();
+void changeSymbolTable(std::string key, Type *type);
+Type *keyToType(std::string key);
 
 // //两个Type相等
 // bool typeEqual(Type *A, Type *B){ //定义这种类型的"=="关系运算符以及"!="关系运算符

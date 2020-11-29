@@ -73,13 +73,22 @@
 //问题11：关于检测return type的地方
 //目前做法：就在return的地方检测，不移动到上层
 
-//问题11：检查所有compst, 加上enter和out
+//----------下列问题涉及到multiple-scope----------
+
+//问题11.5：检查所有compst, 加上enter和out
+
+//问题11.6：检查结构体定义，看是否要加上enter和out
+//预期：结构体定义和谁冲突都无所谓，只要自己别和自己冲突即可
 
 //问题12：检查一遍所有的symbol_table以及相关函数调用之地，保证逻辑正确
 
 //问题13：funDec只需保证里面形参没有重复，和其它地方重复没关系，需检查之前的代码是否直接插入symbol_table中。
 
 //问题14：目前redefined的变量只存在于同一scope中，可能会有些地方需要大修
+
+//问题15：在shadow outer_variables时，需要检查outer_variable的scope_level，若相同，则报错，若不同，则插入
+
+//问题16：funDec中的参数scope_level要+1
 
 // 大工程：revoke Assumption 6, thus variables in dierent scopes can share the same identier,
 // and variables defined in the outer scope will be shadowed by the inner variables with
@@ -112,8 +121,7 @@ void debug_log(const char *str, ...){
 void debug_print_symbol_map(){
 #if  SE_DEBUG==1 
     int count = 0;
-    auto symbol_table_pointer = accessSymbolTable();
-    auto symbol_table = *symbol_table_pointer;
+    auto symbol_table = accessSymbolTable(); //checked
     for (auto iter=symbol_table.begin(); iter!=symbol_table.end(); iter++){
         count++;
         debug_log("symbol_table: key%d: %s\n", count, iter->first.c_str());
@@ -136,8 +144,7 @@ void debug_print_structure_map(){
 //finished, 有就返回Type，没有就返回NULL
 Type *stringToType(std::string name){
     // 查询符号表
-    auto symbol_table_pointer = accessSymbolTable();
-    auto symbol_table = *symbol_table_pointer;
+    auto symbol_table = accessSymbolTable(); //checked
     auto iter = symbol_table.find(name);
     if(iter != symbol_table.end()){ //2. 这个id已经存在
         return iter->second;
@@ -149,8 +156,7 @@ Type *stringToType(std::string name){
 
 //finished
 void putAMapIntoSymbolTable(std::map<std::string, Type *> themap, parseTree *node){
-    auto symbol_table_pointer = accessSymbolTable();
-    auto symbol_table = *symbol_table_pointer;
+    auto symbol_table = accessSymbolTable(); //checked
     for (auto themap_iter=themap.begin(); themap_iter!=themap.end(); themap_iter++){
         auto symbol_iter = symbol_table.find(themap_iter->first);
         if(symbol_iter != symbol_table.end()){  //symbol_table中已有这个key
@@ -158,7 +164,8 @@ void putAMapIntoSymbolTable(std::map<std::string, Type *> themap, parseTree *nod
             reportError(out, T3_VAR_REDEF, node->lineno);
         }
         else{   //symbol_table中没有这个key，插入
-            symbol_table.insert(*themap_iter);
+            changeSymbolTable((*themap_iter).first, (*themap_iter).second);
+            symbol_table.insert(*themap_iter); //保留
         }
     }
 }
@@ -188,9 +195,45 @@ bool key_in_map(std::map<std::string, Type *> themap, std::string key){
 // note:目前所有涉及到symbol_table的地方很可能都要修改
 
 //finished-2
-std::map<std::string, Type *> *accessSymbolTable(){
-    std::map<std::string, Type *> *table_pointer = &(symbol_stack.top());
-    return table_pointer;
+void changeSymbolTable(std::string key, Type *type){
+    std::map<std::string, Type *> table = symbol_stack.top();
+    
+    symbol_stack.pop();
+    auto iter = table.find(key);
+    if(iter != table.end()){
+        //1. 如果该key存在
+        if(iter->second->scope_level < current_scope_level){
+            //1-1. 如果scope_level < 当前，则覆盖
+            table[key] = type;
+        }
+        else{
+            //1-2. 否则，不插入并报错
+            debug_log("Oppps, a BIG UNEXPECTED_BEHAVIOR");
+            // reportError(out, T3_VAR_REDEF, lineno);
+        }
+    }
+    else{
+        //2. 如果該key不存在，直接插入
+        table[key] = type;
+    }
+    symbol_stack.push(table);
+}
+
+//finished
+Type *keyToType(std::string key){
+    std::map<std::string, Type *> table = symbol_stack.top();
+    auto iter = table.find(key);
+    if(iter != table.end()){
+        return NULL;
+    }
+    else{
+        return (iter->second);
+    }
+}
+
+//finished-2
+std::map<std::string, Type *> accessSymbolTable(){
+    return symbol_stack.top();
 }
 
 //finished-2
@@ -219,7 +262,7 @@ void enterCompst(Function *funDec){
         auto fun_args = funDec->args;
         for(auto iter = fun_args.begin(); iter != fun_args.end(); iter++){
             if(key_in_map(symbol_table, iter->first)){
-                //3-1. 符号表中已经有这个参数，覆盖它
+                //3-1. 符号表中已经有这个参数，覆盖它，这个时候所有的scope_level都比它小，所以可以直接覆盖
                 symbol_table[iter->first] = iter->second;
             }
             else{
@@ -236,8 +279,7 @@ void enterCompst(Function *funDec){
 bool variableDefined(std::string name){
     bool flag;
     // 查询符号表
-    auto symbol_table_pointer = accessSymbolTable();
-    auto symbol_table = *symbol_table_pointer;
+    auto symbol_table = accessSymbolTable(); //checked
     auto iter = symbol_table.find(name);
     if(iter != symbol_table.end()){ //2. 这个id已经存在
         flag = true;
@@ -465,8 +507,7 @@ Type *checkExp(parseTree *node){
         debug_log("exp->kids[0]->token_name = %s\n", node->kids[0]->token_name.c_str());
         if(node->kids[0]->token_name.compare("ID") == 0){
             //根据ID获得Type, 再进行比较
-            auto symbol_table_pointer = accessSymbolTable();
-            auto symbol_table = *symbol_table_pointer;
+            auto symbol_table = accessSymbolTable(); //checked
             std::string id(node->kids[0]->attribute.str_attribute);
             auto pair = symbol_table.find(id);
             if(pair != symbol_table.end()){
@@ -612,8 +653,7 @@ Type *checkExp(parseTree *node){
                 //查看ID是否已经声明 TODO:记得参考下面那个差不多的函数
                 //1. 看有没有ID 2. 看是不是函数 3.看参数是否匹配
                 std::string key(node->kids[0]->attribute.str_attribute);
-                auto symbol_table_pointer = accessSymbolTable();
-                auto symbol_table = *symbol_table_pointer;
+                auto symbol_table = accessSymbolTable(); //checked
                 if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
                     Type *tmp = stringToType(key);
                     //TODO: 和下面一樣，可以考慮合成一個方法（函數）
@@ -669,8 +709,7 @@ Type *checkExp(parseTree *node){
             std::string key(node->kids[0]->attribute.str_attribute);
             debug_log("When invoking the function %s, the symbol_table is \n", key.c_str());
             debug_print_symbol_map();
-            auto symbol_table_pointer = accessSymbolTable();
-            auto symbol_table = *symbol_table_pointer;
+            auto symbol_table = accessSymbolTable(); //checked
             if(key_in_map(symbol_table, key)){ //若已经声明，返回函数返回值作为类型
                 //TODO：还需要检查Args里的各类东西1.是否定义 2.类型是否match
                 //TODO：关于这个，看看有没有自带的测试用例吧，若没有，可以我们来搞
@@ -737,6 +776,7 @@ std::pair<std::string, Type *> checkDec(parseTree *node, Type *type){
 
     //我希望checkVarDec能够返回一个<string, type *> pair
     field = checkVarDec(node->kids[0], type);
+    // debug_log("In checkDec, line %d, field->name = %s\n", node->lineno, field.first.c_str());
     if(node->kids_num > 1){ // 右边有赋值操作,目前只需检查右边表达式是否和type匹配
         //如果不匹配，报个错就完事了
         Type *expType = checkExp(node->kids[2]);
@@ -749,16 +789,48 @@ std::pair<std::string, Type *> checkDec(parseTree *node, Type *type){
     return field;
 }
 
-//finished, 我希望checkDecList返回的是一个std::map<std::string, Type *>
+//finished 如果插入成功，返回true, 插入失败, 返回false
+bool piarIntoSymbolTable(std::pair<std::string, Type *> apair){
+    auto symbol_table = accessSymbolTable(); //checked
+    auto iter = symbol_table.find(apair.first);
+    if(iter != symbol_table.end()){
+        debug_print_symbol_map();
+        debug_log("insert failing\n");
+        return false;
+    }
+    else{
+        changeSymbolTable(apair.first, apair.second);
+        // symbol_table.insert(apair);
+        debug_print_symbol_map();
+        debug_log("insert success\n");
+        return true;
+    }
+}
+
+//finished, 我希望checkDecList返回的是一个std::vector<std::string, Type *>
 std::map<std::string, Type *> checkDecList(parseTree *node, Type *type){
     std::map<std::string, Type *> fieldList;
     //我希望checkDec能够返回一个<string, type *> pair
+    //1. 获得在前面的Dec
     auto field = checkDec(node->kids[0], type);
-    if(node->kids_num > 1){ //checkDecList
-        auto fields = checkDecList(node->kids[2], type);
-        fieldList = fields;
+    //2. 把这个Dec插入symboltable，看是否成功
+    debug_log("Line %d: This variable name = %s\n", node->lineno, field.first.c_str());
+    if(piarIntoSymbolTable(field)){
+        //2-1. 如果成功，当前Dec有用，插入fieldList，继续看后面的decs
+        fieldList.insert(field);
     }
-    fieldList.insert(field);
+    else{
+        //2-2. 如果不成功，说明前面已经有重复定义的同名变量，报错()，当前dec被抛弃掉，不插入fieldList, 继续看后边decs
+        reportError(out, T3_VAR_REDEF, node->lineno);
+    }
+    //3. 后面的decs也返回上来了，里面不包括插入失败的dec，自然也不包括当前dec，在当前fieldList中插入它们
+    if(node->kids_num > 1){ //checkDecList
+        auto fieldSubList = checkDecList(node->kids[2], type);
+        for(auto iter = fieldSubList.begin(); iter != fieldSubList.end(); iter++){
+            fieldList.insert(*iter);
+        }
+    }
+    //4. 返回fieldList
     return fieldList;
 }
 
@@ -769,7 +841,8 @@ std::map<std::string, Type *> checkDef(parseTree *node){
     type = checkSpecifier(node->kids[0]); //获得这个变量的类型
     //我希望checkDecList返回的是一个std::map<std::string, Type *>
     auto fields = checkDecList(node->kids[1], type);
-    putAMapIntoSymbolTable(fields, node);
+    //在这里看看，symbol_table中是否有重复的
+    // putAMapIntoSymbolTable(fields, node);
     return fields;
 }
 
@@ -779,20 +852,16 @@ std::map<std::string, Type *> checkDefList(parseTree *node){ //为structure的�
 
     //我希望checkDef能够返回一个<string, type *> map
     auto fields = checkDef(node->kids[0]);
+    debug_print_symbol_map();
     if(node->kids_num > 1){ //checkDefList
-        //checkDefList返回的是一个std::map<std::string, Type *>
+        //checkDefList返回的是一个std::map<std::string, Type *>, 这个map中必定与直接的不重合
         auto subfieldList = checkDefList(node->kids[1]);
         fieldList = subfieldList;
     }
-    //检查两个list里定义的变量是否有重复
+    //合并两个Map
     for (auto iter=fields.begin(); iter!=fields.end(); iter++){
-        if(key_in_map(fieldList, iter->first)){ //变量重复，报错
-            // reportError(out, T3_VAR_REDEF, node->lineno);
-            //已经在下一层报错过，先不管TODO
-        }
-        else{ //变量不重复，插入fieldList
-            fieldList.insert(*iter);
-        }
+        //已经在下一层报错过，可以肯定兩個map不重复，不用管
+        fieldList.insert(*iter);
     }
     return fieldList;
 }
@@ -801,14 +870,15 @@ std::map<std::string, Type *> checkDefList(parseTree *node){ //为structure的�
 Type *checkStructSpecifier(parseTree *node){ //用户定义类型报错统一在这里进行
     Type *structure = NULL;
 
-    debug_log("In checkStructSpecifier.\n");
     if(node->kids_num > 2){ //1.检查是不是已经有这个定义了 2.定义类型 3. 插入这个定义
         std::string id(node->kids[1]->attribute.str_attribute);
         if(structDefined(id)){ //1.检查是不是已经有这个定义了，若有则报错
             reportError(out, T15_STRUCTURE_REDEF, node->lineno);
         }
         else{ //2. 若没有，则定义类型，并且 3.插入定义
+            debug_log("In checkStructSpecifier, before checkDefList\n");
             auto fieldList = checkDefList(node->kids[3]);
+            debug_log("In checkStructSpecifier, After checkDefList\n");
             structure = new Structure(id, current_scope_level, fieldList);
             structure_table[id] = structure;
         }
@@ -998,7 +1068,7 @@ void checkCompSt(parseTree *node, Type *returnType){
         checkStmtList(node->kids[1], returnType);
     }
     else{   //先DefList再StmtList 
-        auto variableList = checkDefList(node->kids[1]); //假设已经在下一层检查过
+        checkDefList(node->kids[1]); //假设已经在下一层检查过
         // putAMapIntoSymbolTable(variableList, node); //把它们插入symbol_table
         //已经在下一层放进去过，这个等到扩张scope的时候再说
         debug_print_symbol_map();
@@ -1023,9 +1093,8 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
             }
             else{
                 //2. 该变量名未被使用，插入符号表
-                auto symbol_table_pointer = accessSymbolTable();
-                auto symbol_table = *symbol_table_pointer;
-                symbol_table.insert(variable);
+                changeSymbolTable(variable.first, variable.second);
+                // symbol_table.insert(variable);
             }
         }
         debug_print_symbol_map();
@@ -1036,9 +1105,8 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
         debug_log("In checkExtDef, before checkFunDec.\n");
         auto function = checkFunDec(node->kids[1], type);
         debug_log("In checkExtDef, after checkFunDec.\n");
-        auto symbol_table_pointer = accessSymbolTable();
-        auto symbol_table = *symbol_table_pointer;
-        symbol_table.insert(function);
+        changeSymbolTable(function.first, function.second);
+        // symbol_table.insert(function);
         //即便知道这个函数定义有问题，compst内的东西还是需要检查，如果function.second == NULL，说明函数定义有问题
         //TODO: function.second 可能会为NULL
         Function *funDec = (Function *)function.second;
@@ -1046,11 +1114,6 @@ void checkExtDef(parseTree *node){ //这里作为统一插入层比较好，代�
         checkCompSt(node->kids[2], type);
         // Type *return_type = checkCompSt(node->kids[2], funDec);
         debug_log("In checkExtDef, after checkCompSt.\n");\
-        // //type是函数声明的返回值类型
-        // if(*return_type != *type){
-        //     //如果返回值类型不匹配，报错
-        //     reportError(out, T8_FUNC_RETURN_UNMATCH_DECLARED, node->lineno);
-        // }
     }
 }
 
