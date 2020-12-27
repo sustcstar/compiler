@@ -1,0 +1,66 @@
+FUNCTION main :
+temp0 := #30
+varN := temp0
+temp1 := #0
+varnum := temp1
+temp2 := #1
+vari := temp2
+temp3 := #1
+vark := temp3
+LABEL lab4 :
+temp7 := vark
+temp8 := varN
+IF temp7 <= temp8 GOTO lab5
+GOTO lab6
+LABEL lab5 :
+LABEL lab9 :
+temp12 := vari
+temp13 := vark
+IF temp12 <= temp13 GOTO lab10
+GOTO lab11
+LABEL lab10 :
+temp16 := vark
+temp20 := vark
+temp21 := vari
+temp18 := temp20 / temp21
+temp19 := vari
+temp17 := temp18 * temp19
+IF temp16 == temp17 GOTO lab14
+GOTO lab15
+LABEL lab14 :
+temp24 := varnum
+temp25 := #1
+temp23 := temp24 + temp25
+varnum := temp23
+temp22 := varnum
+LABEL lab15 :
+temp28 := vari
+temp29 := #1
+temp27 := temp28 + temp29
+vari := temp27
+temp26 := vari
+GOTO lab9
+LABEL lab11 :
+temp32 := varnum
+temp33 := #2
+IF temp32 == temp33 GOTO lab30
+GOTO lab31
+LABEL lab30 :
+temp35 := vark
+WRITE temp35
+LABEL lab31 :
+temp37 := #1
+vari := temp37
+temp36 := vari
+temp39 := #0
+varnum := temp39
+temp38 := varnum
+temp42 := vark
+temp43 := #1
+temp41 := temp42 + temp43
+vark := temp41
+temp40 := vark
+GOTO lab4
+LABEL lab6 :
+temp44 := #0
+RETURN temp44

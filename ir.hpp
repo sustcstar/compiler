@@ -42,5 +42,7 @@
 // void irExtDef(parseTree *node);
 
 std::string irExp(parseTree *node, int place);
+void irProgram(parseTree *root);
+std::string irCompSt(parseTree *node);
 
 #endif
