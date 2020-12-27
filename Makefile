@@ -4,7 +4,7 @@ BISON=bison
 splc: .lex .syntax
 	@rm -rf bin/
 	@mkdir bin
-	$(PLUSPLUS) parseTree.cpp syntax.tab.c reportError.cpp semantic.cpp -lfl -ly -g -o bin/splc 
+	$(PLUSPLUS) parseTree.cpp syntax.tab.c semantic.cpp reportError.cpp ir.cpp -lfl -ly -g -o bin/splc 
 	@chmod +x bin/splc
 lexer: .lex
 	$(PLUSPLUS) lex.yy.c -lfl -o lexer.out

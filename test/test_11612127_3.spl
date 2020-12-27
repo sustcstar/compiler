@@ -1,7 +1,0 @@
-int foo1(int a, float b, char c){ 
-
-} 
-
-int foo2(int d, float e, char d){ 
-
-} 

@@ -1,0 +1,7 @@
+[DEBUG] 2020-12-25 08:17:04,524 (irsim.py 620): Parsed arguments: {'irpath': 'test01.ir', 'inputs': '1,9,42', 'logpath': 'irsim.log'}
+[INFO] 2020-12-25 08:17:04,524 (irsim.py 567): File loaded successfully
+[INFO] 2020-12-25 08:17:06,262 (irsim.py 567): Program has exited gracefully
+[INFO] 2020-12-25 08:17:06,262 (irsim.py 567): Total instructions = 10
+[WARNING] 2020-12-25 08:17:07,428 (irsim.py 574): Program Counter goes out of bound. The running program will be terminated instantly
+[WARNING] 2020-12-25 08:17:07,764 (irsim.py 574): Program Counter goes out of bound. The running program will be terminated instantly
+[INFO] 2020-12-25 08:17:17,301 (irsim.py 567): KeyboardInterrupt raised, quit program

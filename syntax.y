@@ -2,6 +2,7 @@
     #include"lex.yy.c"
     #include"reportError.hpp"
     #include"semantic.hpp"
+    #include"ir.hpp"
     // #include<iostream>
     parseTree *root;
     // int yydebug = 1;
@@ -204,7 +205,6 @@ int main(int argc, char **argv){
         // semantic analysis 前面两个没错，才会做语法分析
         semanticCheck(root);
     }
-//T2 T11 T12 T14 T9 T5_UNMATCH //T3_VAR_REDEF//T8_FUNC_RETURN_UNMATCH_DECLARED
 
     return 0;
 }
