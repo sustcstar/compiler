@@ -206,7 +206,9 @@ int main(int argc, char **argv){
         // semanticCheck(root);
     }
 
-    irProgram(root);
+    std::string input_path_k(argv[1]);
+    //printf("%s\n", input_path_k.c_str());
+    irProgram(root, input_path_k);
 
     return 0;
 }

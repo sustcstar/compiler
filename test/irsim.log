@@ -1,0 +1,4 @@
+[DEBUG] 2020-12-27 06:20:24,365 (irsim.py 620): Parsed arguments: {'irpath': 'test_3_r09.ir', 'inputs': '', 'logpath': 'irsim.log'}
+[INFO] 2020-12-27 06:20:24,367 (irsim.py 567): File loaded successfully
+[INFO] 2020-12-27 06:23:35,573 (irsim.py 567): Program has exited gracefully
+[INFO] 2020-12-27 06:23:35,573 (irsim.py 567): Total instructions = 122232

@@ -1,0 +1,81 @@
+FUNCTION main :
+t1 := #1
+a := t1
+t0 := a
+t3 := #2
+b := t3
+t2 := b
+t5 := #3
+c := t5
+t4 := c
+t7 := #1
+tu1 := t7
+t6 := tu1
+t9 := #1
+tu2 := t9
+t8 := tu2
+READ t11
+m := t11
+t10 := m
+t12 := m
+t13 := #1
+IF t12 < t13 GOTO label0
+GOTO label1
+LABEL label0 :
+t15 := #0
+WRITE t15
+GOTO label2
+LABEL label1 :
+t16 := m
+t17 := #1
+IF t16 == t17 GOTO label3
+GOTO label6
+LABEL label6 :
+t18 := m
+t19 := #2
+IF t18 == t19 GOTO label3
+GOTO label4
+LABEL label3 :
+t21 := #1
+WRITE t21
+GOTO label5
+LABEL label4 :
+t22 := m
+t23 := #2
+IF t22 > t23 GOTO label7
+GOTO label8
+LABEL label7 :
+t25 := #3
+i := t25
+t24 := i
+LABEL label9 :
+t26 := i
+t27 := m
+IF t26 <= t27 GOTO label10
+GOTO label11
+LABEL label10 :
+t30 := tu1
+t31 := tu2
+t29 := t30 + t31
+tu3 := t29
+t28 := tu3
+t33 := tu2
+tu1 := t33
+t32 := tu1
+t35 := tu3
+tu2 := t35
+t34 := tu2
+t38 := i
+t39 := #1
+t37 := t38 + t39
+i := t37
+t36 := i
+GOTO label9
+LABEL label11 :
+t41 := tu3
+WRITE t41
+LABEL label8 :
+LABEL label5 :
+LABEL label2 :
+t42 := #0
+RETURN t42

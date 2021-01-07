@@ -42,10 +42,12 @@ std::string formatToString(const char *str, ...){
 }
 
 //finished
-void initializeIR(){
+void initializeIR(std::string input_path_k){
     place = 0;
     label = 0;
-    irout = stdout;
+    std::string pureName = input_path_k.substr(0, input_path_k.length()-3);
+    pureName = pureName + "ir";
+    irout = fopen(pureName.c_str(), "w");
 }
 
 //finished
@@ -331,11 +333,22 @@ std::string irStmt(parseTree *node){
     }
 }
 
-//fnished
-int irVarList(parseTree *node){
-    int count = 1;
+//finished
+void irVarDec(parseTree *node, std::vector<std::string> *paramList){
+    std::string name(node->kids[0]->attribute.str_attribute);
+    paramList->push_back(name);
+}
+
+//finished
+void irParamDec(parseTree *node, std::vector<std::string> *paramList){
+    irVarDec(node->kids[1], paramList);
+}  
+
+//finished
+void irVarList(parseTree *node, std::vector<std::string> *paramList){
+    irParamDec(node->kids[0], paramList);
     if(node->kids_num > 1){
-        return count + irVarList(node->kids[2]);
+        irVarList(node->kids[2], paramList);
     }
 }
 
@@ -351,11 +364,11 @@ std::string irFunDec(parseTree *node){
         // ID LP VarList RP
         std::string function_name(node->kids[0]->attribute.str_attribute);
         std::string code1 = formatToString("FUNCTION %s :\n", function_name.c_str());
-        int varnum = irVarList(node->kids[2]);
+        std::vector<std::string> paramList;
+        irVarList(node->kids[2], &paramList);
         std::string code2("");
-        for(int i = 0; i < varnum; i++){
-            int tp = new_place();
-            code2 = code2 + formatToString("PARAM t%d\n", tp);
+        for(auto it = paramList.begin(); it != paramList.end(); it++){
+            code2 = code2 + formatToString("PARAM %s\n", it->c_str());
         }
         return code1 + code2;
     }
@@ -456,9 +469,9 @@ std::string irExtDefList(parseTree *node){
 }
 
 //finished
-void irProgram(parseTree *root){
+void irProgram(parseTree *root, std::string input_path_k){
     std::string code;
-    initializeIR();
+    initializeIR(input_path_k);
     if(root->kids_num > 0){
         ir_log("before irExtDefList\n");
         code = irExtDefList(root->kids[0]);

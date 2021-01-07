@@ -1,0 +1,149 @@
+FUNCTION main :
+READ t1
+year := t1
+t0 := year
+READ t3
+month := t3
+t2 := month
+t4 := year
+t8 := year
+t9 := #100
+t6 := t8 / t9
+t7 := #100
+t5 := t6 * t7
+IF t4 == t5 GOTO label0
+GOTO label1
+LABEL label0 :
+t10 := year
+t14 := year
+t15 := #400
+t12 := t14 / t15
+t13 := #400
+t11 := t12 * t13
+IF t10 == t11 GOTO label3
+GOTO label4
+LABEL label3 :
+t16 := month
+t17 := #2
+IF t16 == t17 GOTO label6
+GOTO label7
+LABEL label6 :
+t19 := #29
+WRITE t19
+GOTO label8
+LABEL label7 :
+t20 := month
+t24 := month
+t25 := #2
+t22 := t24 / t25
+t23 := #2
+t21 := t22 * t23
+IF t20 == t21 GOTO label9
+GOTO label10
+LABEL label9 :
+t27 := #30
+WRITE t27
+GOTO label11
+LABEL label10 :
+t29 := #31
+WRITE t29
+LABEL label11 :
+LABEL label8 :
+GOTO label5
+LABEL label4 :
+t30 := month
+t31 := #2
+IF t30 == t31 GOTO label12
+GOTO label13
+LABEL label12 :
+t33 := #28
+WRITE t33
+GOTO label14
+LABEL label13 :
+t34 := month
+t38 := month
+t39 := #2
+t36 := t38 / t39
+t37 := #2
+t35 := t36 * t37
+IF t34 == t35 GOTO label15
+GOTO label16
+LABEL label15 :
+t41 := #30
+WRITE t41
+GOTO label17
+LABEL label16 :
+t43 := #31
+WRITE t43
+LABEL label17 :
+LABEL label14 :
+LABEL label5 :
+GOTO label2
+LABEL label1 :
+t44 := year
+t48 := year
+t49 := #4
+t46 := t48 / t49
+t47 := #4
+t45 := t46 * t47
+IF t44 == t45 GOTO label18
+GOTO label19
+LABEL label18 :
+t50 := month
+t51 := #2
+IF t50 == t51 GOTO label21
+GOTO label22
+LABEL label21 :
+t53 := #29
+WRITE t53
+GOTO label23
+LABEL label22 :
+t54 := month
+t58 := month
+t59 := #2
+t56 := t58 / t59
+t57 := #2
+t55 := t56 * t57
+IF t54 == t55 GOTO label24
+GOTO label25
+LABEL label24 :
+t61 := #30
+WRITE t61
+GOTO label26
+LABEL label25 :
+t63 := #31
+WRITE t63
+LABEL label26 :
+LABEL label23 :
+GOTO label20
+LABEL label19 :
+t64 := month
+t65 := #2
+IF t64 == t65 GOTO label27
+GOTO label28
+LABEL label27 :
+t67 := #28
+WRITE t67
+GOTO label29
+LABEL label28 :
+t68 := month
+t72 := month
+t73 := #2
+t70 := t72 / t73
+t71 := #2
+t69 := t70 * t71
+IF t68 == t69 GOTO label30
+GOTO label31
+LABEL label30 :
+t75 := #30
+WRITE t75
+GOTO label32
+LABEL label31 :
+t77 := #31
+WRITE t77
+LABEL label32 :
+LABEL label29 :
+LABEL label20 :
+LABEL label2 :
+t78 := #0
+RETURN t78
